@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BodyMeasurements } from '../types/user';
+import type { BodyMeasurements, FitnessGoal } from '../types/user';
 import progressService from '../services/progressService';
+import { generateProgressInsights, type AIProgressInsights } from '../services/progressAnalyticsService';
 
 interface WeightEntry {
   date: string;
@@ -24,6 +25,8 @@ interface ProgressState {
   measurementEntries: MeasurementEntry[];
   photos: PhotoEntry[];
   isSyncing: boolean;
+  aiInsights: AIProgressInsights | null;
+  isLoadingInsights: boolean;
 }
 
 interface ProgressActions {
@@ -37,6 +40,7 @@ interface ProgressActions {
   addMeasurementAsync: (measurements: BodyMeasurements) => Promise<void>;
   addPhotoAsync: (uri: string) => Promise<void>;
   syncAllAsync: () => Promise<void>;
+  fetchInsightsAsync: (opts?: { goal?: FitnessGoal; targetWeightKg?: number; language?: 'en' | 'ro' }) => Promise<void>;
 }
 
 export const useProgressStore = create<ProgressState & ProgressActions>()(
@@ -61,6 +65,8 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
       ],
       photos: [],
       isSyncing: false,
+      aiInsights: null,
+      isLoadingInsights: false,
 
       // ── Local actions ──────────────────────────────────────────────────────
 
@@ -140,6 +146,24 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
           set({ weightEntries, measurementEntries, photos, isSyncing: false });
         } catch {
           set({ isSyncing: false });
+        }
+      },
+
+      fetchInsightsAsync: async (opts = {}) => {
+        const { weightEntries, measurementEntries } = get();
+        if (weightEntries.length < 2) return;
+        set({ isLoadingInsights: true });
+        try {
+          const insights = await generateProgressInsights({
+            weightEntries,
+            measurementEntries,
+            goal: opts.goal,
+            targetWeightKg: opts.targetWeightKg,
+            language: opts.language ?? 'en',
+          });
+          set({ aiInsights: insights, isLoadingInsights: false });
+        } catch {
+          set({ isLoadingInsights: false });
         }
       },
     }),

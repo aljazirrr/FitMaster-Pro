@@ -837,13 +837,22 @@ export default function ProfileScreen() {
               </>
             )}
 
-            <TouchableOpacity
-              style={styles.logWeightButton}
-              onPress={() => setWeightModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.logWeightButtonText}>Log Weight</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[styles.logWeightButton, { flex: 1 }]}
+                onPress={() => setWeightModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.logWeightButtonText}>Log Weight</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.logWeightButton, { flex: 1, backgroundColor: `${colors.primary}22` }]}
+                onPress={() => router.push('/(tabs)/profile/analytics')}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.logWeightButtonText, { color: colors.primary }]}>✨ AI Analysis</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
