@@ -1023,9 +1023,7 @@ export default function ProfileScreen() {
               </View>
               <TouchableOpacity
                 style={styles.viewPhotosButton}
-                onPress={() =>
-                  Alert.alert('Progress Photos', 'Photo gallery coming soon!')
-                }
+                onPress={() => router.push('/(tabs)/profile/photos' as any)}
                 activeOpacity={0.8}
               >
                 <Text style={styles.viewPhotosButtonText}>View Photos</Text>

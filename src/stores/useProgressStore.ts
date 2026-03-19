@@ -34,6 +34,7 @@ interface ProgressActions {
   addWeight: (value: number) => void;
   addMeasurement: (measurements: BodyMeasurements) => void;
   addPhoto: (uri: string) => void;
+  removePhoto: (uri: string) => void;
 
   // ── Async actions ─────────────────────────────────────────────────────────
   addWeightAsync: (value: number) => Promise<void>;
@@ -89,6 +90,11 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
       addPhoto: (uri) =>
         set((state) => ({
           photos: [{ date: new Date().toISOString().split('T')[0], uri }, ...state.photos],
+        })),
+
+      removePhoto: (uri) =>
+        set((state) => ({
+          photos: state.photos.filter((p) => p.uri !== uri),
         })),
 
       // ── Async actions ──────────────────────────────────────────────────────
