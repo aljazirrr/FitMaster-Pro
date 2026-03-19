@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../../src/theme';
 import { useWorkoutStore } from '../../../../src/stores/useWorkoutStore';
 import { useVoiceCoach } from '../../../../src/hooks/useVoiceCoach';
+import { useRestTimer } from '../../../../src/hooks/useRestTimer';
 import { exercises, getExerciseById } from '../../../../src/data/exercises';
 import type { WorkoutExercise, WorkoutSet } from '../../../../src/types/workout';
 import type { Exercise } from '../../../../src/types/exercise';
@@ -299,6 +300,146 @@ function ExerciseCard({
 }
 
 // ---------------------------------------------------------------------------
+// Rest Timer modal
+// ---------------------------------------------------------------------------
+
+type RestTimerHook = ReturnType<typeof useRestTimer>;
+
+interface RestTimerModalProps {
+  visible: boolean;
+  timer: RestTimerHook;
+  theme: ReturnType<typeof useTheme>['theme'];
+  onSkip: () => void;
+  onAddTime: (seconds: number) => void;
+  onClose: () => void;
+}
+
+function RestTimerModal({ visible, timer, theme, onSkip, onAddTime, onClose }: RestTimerModalProps) {
+  const { colors } = theme;
+
+  const mm = String(Math.floor(timer.secondsLeft / 60)).padStart(2, '0');
+  const ss = String(timer.secondsLeft % 60).padStart(2, '0');
+  const timeStr = `${mm}:${ss}`;
+
+  // Colour transitions: green → orange → red as time runs out
+  const ratio = timer.totalSeconds > 0 ? timer.secondsLeft / timer.totalSeconds : 1;
+  const ringColor = ratio > 0.5 ? '#4CAF50' : ratio > 0.25 ? '#FF9800' : '#F44336';
+
+  // Close modal when timer finishes
+  useEffect(() => {
+    if (visible && !timer.isRunning && timer.secondsLeft === 0 && timer.totalSeconds > 0) {
+      onClose();
+    }
+  }, [visible, timer.isRunning, timer.secondsLeft, timer.totalSeconds, onClose]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onSkip}
+    >
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          justifyContent: 'flex-end',
+        }}
+        onPress={onSkip}
+      >
+        <Pressable
+          style={{
+            backgroundColor: colors.card,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: 32,
+            paddingTop: 20,
+            paddingBottom: 40,
+            alignItems: 'center',
+            gap: 20,
+          }}
+          onPress={() => {}} // prevent tap-through
+        >
+          {/* Drag handle */}
+          <View style={{ width: 40, height: 4, backgroundColor: colors.border, borderRadius: 2 }} />
+
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textSecondary, letterSpacing: 1 }}>
+            REST TIMER
+          </Text>
+
+          {/* Circular progress ring */}
+          <View style={{ alignItems: 'center', justifyContent: 'center', width: 160, height: 160 }}>
+            {/* Background ring */}
+            <View style={{
+              position: 'absolute', width: 160, height: 160, borderRadius: 80,
+              borderWidth: 10, borderColor: colors.border,
+            }} />
+            {/* Progress ring (simplified arc using border trick) */}
+            <View style={{
+              position: 'absolute', width: 160, height: 160, borderRadius: 80,
+              borderWidth: 10,
+              borderColor: ringColor,
+              opacity: timer.isRunning ? 1 : 0.4,
+              transform: [{ rotate: `${-90 + (1 - (timer.secondsLeft / Math.max(timer.totalSeconds, 1))) * 360}deg` }],
+              borderRightColor: 'transparent',
+              borderBottomColor: (1 - timer.secondsLeft / Math.max(timer.totalSeconds, 1)) > 0.25 ? ringColor : 'transparent',
+              borderLeftColor: (1 - timer.secondsLeft / Math.max(timer.totalSeconds, 1)) > 0.5 ? ringColor : 'transparent',
+              borderTopColor: (1 - timer.secondsLeft / Math.max(timer.totalSeconds, 1)) > 0.75 ? ringColor : 'transparent',
+            }} />
+            {/* Time display */}
+            <Text style={{ fontSize: 48, fontWeight: '800', color: timer.isRunning ? ringColor : colors.textSecondary, letterSpacing: -2 }}>
+              {timeStr}
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: -4 }}>
+              {timer.isRunning ? 'remaining' : 'done!'}
+            </Text>
+          </View>
+
+          {/* Add time buttons */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[15, 30].map((sec) => (
+              <Pressable
+                key={sec}
+                onPress={() => onAddTime(sec)}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? colors.border : colors.background,
+                  borderRadius: 14,
+                  paddingHorizontal: 18,
+                  paddingVertical: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                })}
+              >
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                  +{sec}s
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Skip button */}
+          <Pressable
+            onPress={onSkip}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? colors.border : colors.primary,
+              borderRadius: 16,
+              paddingHorizontal: 48,
+              paddingVertical: 14,
+              width: '100%',
+              alignItems: 'center',
+            })}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              Skip Rest
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Exercise picker modal
 // ---------------------------------------------------------------------------
 
@@ -445,6 +586,13 @@ export default function ActiveWorkoutScreen() {
 
   const coach = useVoiceCoach();
   const [coachTipVisible, setCoachTipVisible] = useState(false);
+
+  // Rest timer — starts automatically when a set is completed
+  const [restTimerVisible, setRestTimerVisible] = useState(false);
+  const restTimer = useRestTimer(() => {
+    // On finish: hide modal (already hidden if user skipped)
+    setRestTimerVisible(false);
+  });
 
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [workoutName, setWorkoutName] = useState(
@@ -600,8 +748,7 @@ export default function ActiveWorkoutScreen() {
     (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => {
       updateSet(exerciseId, setId, updates);
 
-      // Trigger voice coach when a set is marked as complete
-      if (updates.completed === true && coach.isEnabled) {
+      if (updates.completed === true) {
         const ex = activeWorkout?.exercises.find(
           (e) => e.id === exerciseId || e.exerciseId === exerciseId,
         );
@@ -609,15 +756,25 @@ export default function ActiveWorkoutScreen() {
         const completedSetIndex = ex
           ? ex.sets.filter((s) => s.completed).length
           : 0;
-        coach.speakSetComplete({
-          exerciseName: exerciseData?.name ?? exerciseId,
-          setIndex: completedSetIndex,
-          weight: updates.weight ?? 0,
-          reps: updates.reps ?? 0,
-        });
+
+        // Voice coach feedback
+        if (coach.isEnabled) {
+          coach.speakSetComplete({
+            exerciseName: exerciseData?.name ?? exerciseId,
+            setIndex: completedSetIndex,
+            weight: updates.weight ?? 0,
+            reps: updates.reps ?? 0,
+          });
+        }
+
+        // Start rest timer using the set's restSeconds (default 60s)
+        const completedSet = ex?.sets.find((s) => s.id === setId);
+        const restSecs = completedSet?.restSeconds ?? 60;
+        restTimer.start(restSecs);
+        setRestTimerVisible(true);
       }
     },
-    [updateSet, activeWorkout, coach],
+    [updateSet, activeWorkout, coach, restTimer],
   );
 
   const handleRemoveSet = useCallback(
@@ -849,6 +1006,19 @@ export default function ActiveWorkoutScreen() {
         onSelect={handleAddExercise}
         styles={styles}
         theme={theme}
+      />
+
+      {/* Rest Timer modal */}
+      <RestTimerModal
+        visible={restTimerVisible}
+        timer={restTimer}
+        theme={theme}
+        onSkip={() => {
+          restTimer.skip();
+          setRestTimerVisible(false);
+        }}
+        onAddTime={(s) => restTimer.addTime(s)}
+        onClose={() => setRestTimerVisible(false)}
       />
     </SafeAreaView>
   );
