@@ -12,6 +12,7 @@ module.exports = {
     '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
     '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
     '^@anthropic-ai/sdk$': '<rootDir>/__mocks__/@anthropic-ai/sdk.js',
+    '^expo-speech$': '<rootDir>/__mocks__/expo-speech.js',
   },
   // Don't transform node_modules except zustand (ESM)
   transformIgnorePatterns: [

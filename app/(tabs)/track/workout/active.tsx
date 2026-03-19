@@ -23,6 +23,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../../src/theme';
 import { useWorkoutStore } from '../../../../src/stores/useWorkoutStore';
+import { useVoiceCoach } from '../../../../src/hooks/useVoiceCoach';
 import { exercises, getExerciseById } from '../../../../src/data/exercises';
 import type { WorkoutExercise, WorkoutSet } from '../../../../src/types/workout';
 import type { Exercise } from '../../../../src/types/exercise';
@@ -442,6 +443,9 @@ export default function ActiveWorkoutScreen() {
     cancelWorkout,
   } = useWorkoutStore();
 
+  const coach = useVoiceCoach();
+  const [coachTipVisible, setCoachTipVisible] = useState(false);
+
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [workoutName, setWorkoutName] = useState(
     activeWorkout?.name ?? 'Workout',
@@ -450,12 +454,21 @@ export default function ActiveWorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const nameInputRef = useRef<TextInput>(null);
 
-  // Sync name when activeWorkout changes
+  // Sync name when activeWorkout changes + greet on first load
   useEffect(() => {
     if (activeWorkout) {
       setWorkoutName(activeWorkout.name);
     }
   }, [activeWorkout?.id]);
+
+  // Greet user when workout starts
+  useEffect(() => {
+    if (activeWorkout) {
+      const timer = setTimeout(() => coach.speakWorkoutStart(), 500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -506,14 +519,57 @@ export default function ActiveWorkoutScreen() {
         { text: t('common.cancel', 'Cancel'), style: 'cancel' },
         {
           text: t('workout.finish', 'Finish'),
-          onPress: () => {
+          onPress: async () => {
+            const completedSets = activeWorkout.exercises.reduce(
+              (n, ex) => n + ex.sets.filter((s) => s.completed).length, 0,
+            );
+            const totalSets = activeWorkout.exercises.reduce(
+              (n, ex) => n + ex.sets.length, 0,
+            );
+            const durationSeconds = Math.floor(
+              (Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000,
+            );
+            const topEx = activeWorkout.exercises[0]
+              ? getExerciseById(activeWorkout.exercises[0].exerciseId)?.name
+              : undefined;
+
             finishWorkout();
             router.replace('/(tabs)/track');
+
+            // Fire-and-forget summary (speaks while navigating away)
+            coach.requestSummary({
+              workoutName: activeWorkout.name,
+              completedSets,
+              totalSets,
+              durationSeconds,
+              topExercise: topEx,
+            }).catch(() => {});
           },
         },
       ],
     );
-  }, [activeWorkout, finishWorkout, t]);
+  }, [activeWorkout, finishWorkout, coach, t]);
+
+  const handleRequestCoachTip = useCallback(() => {
+    if (!activeWorkout || coach.isLoadingTip) return;
+    const firstEx = activeWorkout.exercises[0];
+    if (!firstEx) return;
+    const exerciseData = getExerciseById(firstEx.exerciseId);
+    const completed = firstEx.sets.filter((s) => s.completed).length;
+    const lastCompletedSet = firstEx.sets.filter((s) => s.completed).slice(-1)[0];
+    const duration = Math.floor(
+      (Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000,
+    );
+    setCoachTipVisible(true);
+    coach.requestCoachTip({
+      exerciseName: exerciseData?.name ?? firstEx.exerciseId,
+      setsCompleted: completed,
+      totalSets: firstEx.sets.length,
+      weight: lastCompletedSet?.weight ?? 0,
+      reps: lastCompletedSet?.reps ?? 0,
+      workoutDurationSeconds: duration,
+    }).catch(() => {});
+  }, [activeWorkout, coach]);
 
   const handleCancelWorkout = useCallback(() => {
     Alert.alert(
@@ -543,8 +599,25 @@ export default function ActiveWorkoutScreen() {
   const handleUpdateSet = useCallback(
     (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => {
       updateSet(exerciseId, setId, updates);
+
+      // Trigger voice coach when a set is marked as complete
+      if (updates.completed === true && coach.isEnabled) {
+        const ex = activeWorkout?.exercises.find(
+          (e) => e.id === exerciseId || e.exerciseId === exerciseId,
+        );
+        const exerciseData = ex ? getExerciseById(ex.exerciseId) : null;
+        const completedSetIndex = ex
+          ? ex.sets.filter((s) => s.completed).length
+          : 0;
+        coach.speakSetComplete({
+          exerciseName: exerciseData?.name ?? exerciseId,
+          setIndex: completedSetIndex,
+          weight: updates.weight ?? 0,
+          reps: updates.reps ?? 0,
+        });
+      }
     },
-    [updateSet],
+    [updateSet, activeWorkout, coach],
   );
 
   const handleRemoveSet = useCallback(
@@ -615,16 +688,84 @@ export default function ActiveWorkoutScreen() {
             </View>
           </View>
 
+          {/* Voice Coach controls */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* On-demand coach tip button */}
+            <Pressable
+              style={[
+                styles.finishButton,
+                {
+                  backgroundColor: coach.isLoadingTip
+                    ? theme.colors.border
+                    : `${theme.colors.primary}22`,
+                  paddingHorizontal: 10,
+                },
+              ]}
+              onPress={handleRequestCoachTip}
+              accessibilityLabel="Get coaching tip"
+              disabled={coach.isLoadingTip}
+            >
+              <Text style={{ fontSize: 18 }}>
+                {coach.isLoadingTip ? '⏳' : '🎙️'}
+              </Text>
+            </Pressable>
+
+            {/* Coach toggle */}
+            <Pressable
+              style={[
+                styles.finishButton,
+                {
+                  backgroundColor: coach.isEnabled
+                    ? `${theme.colors.success}22`
+                    : theme.colors.surface,
+                  paddingHorizontal: 10,
+                },
+              ]}
+              onPress={coach.toggleEnabled}
+              accessibilityLabel={coach.isEnabled ? 'Disable voice coach' : 'Enable voice coach'}
+            >
+              <Text style={{ fontSize: 18 }}>
+                {coach.isEnabled ? '🔊' : '🔇'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.finishButton}
+              onPress={handleFinishWorkout}
+              accessibilityLabel="Finish workout"
+            >
+              <Text style={styles.finishButtonText}>
+                {t('workout.finish', 'Finish')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Coach tip bubble */}
+        {coachTipVisible && coach.lastTip && (
           <Pressable
-            style={styles.finishButton}
-            onPress={handleFinishWorkout}
-            accessibilityLabel="Finish workout"
+            onPress={() => setCoachTipVisible(false)}
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 8,
+              backgroundColor: `${theme.colors.primary}18`,
+              borderRadius: 12,
+              padding: 12,
+              borderLeftWidth: 3,
+              borderLeftColor: theme.colors.primary,
+            }}
           >
-            <Text style={styles.finishButtonText}>
-              {t('workout.finish', 'Finish')}
+            <Text style={{ ...theme.typography.caption, color: theme.colors.primary, fontWeight: '700', marginBottom: 2 }}>
+              🎙️ COACH TIP
+            </Text>
+            <Text style={{ ...theme.typography.small, color: theme.colors.text }}>
+              {coach.lastTip}
+            </Text>
+            <Text style={{ ...theme.typography.caption, color: theme.colors.textSecondary, marginTop: 4 }}>
+              tap to dismiss
             </Text>
           </Pressable>
-        </View>
+        )}
 
         {/* Progress bar */}
         {totalSets > 0 && (
