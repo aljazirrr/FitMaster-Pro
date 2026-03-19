@@ -9,12 +9,17 @@ import type {
   FoodItem,
 } from '../types/nutrition';
 import nutritionService from '../services/nutritionService';
+import { lookupBarcode } from '../services/barcodeScannerService';
+import type { BarcodeLookupResult } from '../services/barcodeScannerService';
 
 interface NutritionState {
   dailyLog: Record<string, DailyNutrition>;
   shoppingList: ShoppingItem[];
   foodSearchResults: FoodItem[];
   isSyncing: boolean;
+  // Barcode scanner state
+  scannedFood: BarcodeLookupResult | null;
+  isScanningBarcode: boolean;
 }
 
 interface NutritionActions {
@@ -37,6 +42,8 @@ interface NutritionActions {
   removeMealEntryAsync: (date: string, mealType: MealType, entryId: string) => Promise<void>;
   updateWaterAsync: (date: string, amount: number) => Promise<void>;
   searchFoodsAsync: (query: string) => Promise<void>;
+  scanBarcodeAsync: (barcode: string, language?: 'en' | 'ro') => Promise<void>;
+  clearScannedFood: () => void;
 }
 
 function generateId(): string {
@@ -88,6 +95,8 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
       shoppingList: [],
       foodSearchResults: [],
       isSyncing: false,
+      scannedFood: null,
+      isScanningBarcode: false,
 
       // ── Local actions ──────────────────────────────────────────────────────
 
@@ -235,6 +244,18 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
           set({ foodSearchResults: [] });
         }
       },
+
+      scanBarcodeAsync: async (barcode, language = 'en') => {
+        set({ isScanningBarcode: true, scannedFood: null });
+        try {
+          const result = await lookupBarcode(barcode, language);
+          set({ scannedFood: result, isScanningBarcode: false });
+        } catch {
+          set({ isScanningBarcode: false });
+        }
+      },
+
+      clearScannedFood: () => set({ scannedFood: null }),
     }),
     {
       name: 'fitmaster-nutrition',

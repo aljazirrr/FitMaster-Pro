@@ -1,8 +1,18 @@
 /**
  * Jest mock for @anthropic-ai/sdk
  *
- * Provides a realistic stub for the streaming messages API used by aiPlanService.
+ * Supports:
+ *  - messages.stream  (used by aiPlanService)
+ *  - messages.create  (used by voiceCoachService, progressAnalyticsService, barcodeScannerService)
+ *
+ * Test helpers (module-level):
+ *  - _reset()                         reset all queues to defaults
+ *  - _setNextResponse(response)       next messages.create call returns this
+ *  - _setNextErrorResponse(error)     next messages.create call rejects with this
+ *  - _setNextStream(text)             next messages.stream call uses this text
+ *  - _setNextStreamError(msg)         next messages.stream call rejects
  */
+
 const MOCK_PLAN = JSON.stringify({
   id: 'ai-test-hypertrophy-4day',
   name: 'AI Hypertrophy 4-Day Split',
@@ -83,7 +93,33 @@ const MOCK_PLAN = JSON.stringify({
   ],
 });
 
-// ─── Mock stream ──────────────────────────────────────────────────────────────
+// ─── State queues ─────────────────────────────────────────────────────────────
+
+let _createQueue = []; // { type: 'response'|'error', value }
+let _streamQueue = []; // { type: 'text'|'error', value }
+
+function _reset() {
+  _createQueue = [];
+  _streamQueue = [];
+}
+
+function _setNextResponse(response) {
+  _createQueue.push({ type: 'response', value: response });
+}
+
+function _setNextErrorResponse(error) {
+  _createQueue.push({ type: 'error', value: error });
+}
+
+function _setNextStream(text) {
+  _streamQueue.push({ type: 'text', value: text });
+}
+
+function _setNextStreamError(message) {
+  _streamQueue.push({ type: 'error', value: new Error(message) });
+}
+
+// ─── Stream factory ───────────────────────────────────────────────────────────
 
 function createMockStream(responseText) {
   const listeners = {};
@@ -95,7 +131,6 @@ function createMockStream(responseText) {
     }),
 
     finalMessage: jest.fn(() => {
-      // Emit text event with the response
       if (listeners['text']) {
         listeners['text'](responseText);
       }
@@ -115,8 +150,6 @@ function createMockStream(responseText) {
   return stream;
 }
 
-// ─── Mock error stream ────────────────────────────────────────────────────────
-
 function createErrorStream(errorMessage) {
   return {
     on: jest.fn().mockReturnThis(),
@@ -124,15 +157,43 @@ function createErrorStream(errorMessage) {
   };
 }
 
+// ─── Mock messages implementation ─────────────────────────────────────────────
+
+const mockMessages = {
+  create: jest.fn(async () => {
+    const next = _createQueue.shift();
+    if (!next) {
+      // Default: return a generic text response
+      return {
+        content: [{ type: 'text', text: '{"summary":"Good progress!","recommendations":["Keep it up"]}' }],
+      };
+    }
+    if (next.type === 'error') throw next.value;
+    return next.value;
+  }),
+
+  stream: jest.fn(() => {
+    const next = _streamQueue.shift();
+    if (!next) return createMockStream(MOCK_PLAN);
+    if (next.type === 'error') return createErrorStream(next.value.message);
+    return createMockStream(next.value);
+  }),
+};
+
 // ─── Anthropic class mock ─────────────────────────────────────────────────────
 
 const MockAnthropicClass = jest.fn().mockImplementation(() => ({
-  messages: {
-    stream: jest.fn(() => createMockStream(MOCK_PLAN)),
-  },
+  messages: mockMessages,
 }));
 
-// Expose helpers for tests to override behaviour
+// Module-level test helpers
+MockAnthropicClass._reset = _reset;
+MockAnthropicClass._setNextResponse = _setNextResponse;
+MockAnthropicClass._setNextErrorResponse = _setNextErrorResponse;
+MockAnthropicClass._setNextStream = _setNextStream;
+MockAnthropicClass._setNextStreamError = _setNextStreamError;
+
+// Legacy helpers (kept for backwards compatibility with existing tests)
 MockAnthropicClass._createMockStream = createMockStream;
 MockAnthropicClass._createErrorStream = createErrorStream;
 MockAnthropicClass._getMockPlan = () => JSON.parse(MOCK_PLAN);

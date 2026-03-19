@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
@@ -747,6 +748,7 @@ export default function NutritionScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const styles = useStyles(theme);
+  const router = useRouter();
 
   const [date, setDate] = useState<string>(toISODateString(new Date()));
   const [modalVisible, setModalVisible] = useState(false);
@@ -819,8 +821,15 @@ export default function NutritionScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <Text style={styles.screenTitle}>{t('nutrition.title')}</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: theme.colors.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+          onPress={() => router.push('/(tabs)/nutrition/scanner' as any)}
+        >
+          <Text style={{ fontSize: 16 }}>📷</Text>
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Scan</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Date Navigation */}
