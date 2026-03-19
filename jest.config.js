@@ -8,8 +8,10 @@ module.exports = {
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$':
       '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
-    // Stub out any react-native imports the stores might trigger
     '^react-native$': '<rootDir>/__mocks__/react-native.js',
+    '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
+    // Stub Expo Router's router for hook tests
+    '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
   },
   // Don't transform node_modules except zustand (ESM)
   transformIgnorePatterns: [

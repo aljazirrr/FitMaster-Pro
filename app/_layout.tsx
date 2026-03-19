@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '../src/theme';
+import { useNotifications } from '../src/hooks/useNotifications';
+import useSettingsStore from '../src/stores/useSettingsStore';
 import '../src/i18n';
 
 function RootLayoutInner() {
   const { theme } = useTheme();
+  const { enable } = useNotifications();
+  const { notifications } = useSettingsStore();
+
+  // On first mount, re-schedule reminders if the user had them enabled
+  useEffect(() => {
+    if (notifications) {
+      enable().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />

@@ -32,7 +32,17 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#7C3AED",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "FitMaster Pro"
+        }
+      ]
     ]
   }
 }

@@ -437,7 +437,7 @@ export default function ProfileScreen() {
   const { user, logoutAsync } = useAuthStore();
   const { totalWorkouts, personalRecords } = useWorkoutStore();
   const { weightEntries, photos, addWeight } = useProgressStore();
-  const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotifications } = useSettingsStore();
+  const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync } = useSettingsStore();
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
@@ -937,7 +937,7 @@ export default function ProfileScreen() {
             >
               <Switch
                 value={notifications}
-                onValueChange={toggleNotifications}
+                onValueChange={() => toggleNotificationsAsync()}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.background}
               />
