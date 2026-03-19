@@ -1,0 +1,18 @@
+/** @type {import('jest').Config} */
+module.exports = {
+  testEnvironment: 'node',
+  testMatch: ['**/src/__tests__/**/*.test.ts'],
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react' } }],
+  },
+  moduleNameMapper: {
+    '^@react-native-async-storage/async-storage$':
+      '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
+    // Stub out any react-native imports the stores might trigger
+    '^react-native$': '<rootDir>/__mocks__/react-native.js',
+  },
+  // Don't transform node_modules except zustand (ESM)
+  transformIgnorePatterns: [
+    'node_modules/(?!(zustand)/)',
+  ],
+};
