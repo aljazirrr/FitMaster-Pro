@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { BodyMeasurements, FitnessGoal } from '../types/user';
 import progressService from '../services/progressService';
 import { generateProgressInsights, type AIProgressInsights } from '../services/progressAnalyticsService';
+import { saveWeightEntry, saveMeasurement, fetchWeightLog, fetchMeasurements } from '../services/firestoreService';
 
 interface WeightEntry {
   date: string;
@@ -102,29 +103,30 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
       addWeightAsync: async (value) => {
         // Optimistic local update
         get().addWeight(value);
+        const entry = { date: new Date().toISOString().slice(0, 10), value };
+        // Sync to Firestore (fire-and-forget)
+        saveWeightEntry(entry).catch(() => {});
         try {
-          const entry = await progressService.addWeight(value);
-          // Swap last entry with server's canonical entry (has proper date from server)
+          const serverEntry = await progressService.addWeight(value);
           set((state) => ({
-            weightEntries: [...state.weightEntries.slice(0, -1), entry],
+            weightEntries: [...state.weightEntries.slice(0, -1), serverEntry],
           }));
         } catch {
-          // Remove optimistic entry on failure
-          set((state) => ({ weightEntries: state.weightEntries.slice(0, -1) }));
-          throw new Error('Failed to save weight');
+          // Keep local entry; Firestore already has it
         }
       },
 
       addMeasurementAsync: async (measurements) => {
         get().addMeasurement(measurements);
+        const entry = { date: new Date().toISOString().slice(0, 10), measurements: measurements as unknown as Record<string, number> };
+        saveMeasurement(entry).catch(() => {});
         try {
-          const entry = await progressService.addMeasurement(measurements);
+          const serverEntry = await progressService.addMeasurement(measurements);
           set((state) => ({
-            measurementEntries: [entry, ...state.measurementEntries.slice(1)],
+            measurementEntries: [serverEntry, ...state.measurementEntries.slice(1)],
           }));
         } catch {
-          set((state) => ({ measurementEntries: state.measurementEntries.slice(1) }));
-          throw new Error('Failed to save measurements');
+          // Keep local entry
         }
       },
 
@@ -144,12 +146,26 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
       syncAllAsync: async () => {
         set({ isSyncing: true });
         try {
-          const [weightEntries, measurementEntries, photos] = await Promise.all([
-            progressService.getWeightHistory(),
-            progressService.getMeasurements(),
-            progressService.getPhotos(),
+          // Try Firestore first; fall back to REST API
+          const [fsWeight, fsMeas] = await Promise.all([
+            fetchWeightLog().catch(() => []),
+            fetchMeasurements().catch(() => []),
           ]);
-          set({ weightEntries, measurementEntries, photos, isSyncing: false });
+
+          if (fsWeight.length > 0 || fsMeas.length > 0) {
+            set({
+              weightEntries: fsWeight as any[],
+              measurementEntries: fsMeas as any[],
+              isSyncing: false,
+            });
+          } else {
+            const [weightEntries, measurementEntries, photos] = await Promise.all([
+              progressService.getWeightHistory(),
+              progressService.getMeasurements(),
+              progressService.getPhotos(),
+            ]);
+            set({ weightEntries, measurementEntries, photos, isSyncing: false });
+          }
         } catch {
           set({ isSyncing: false });
         }

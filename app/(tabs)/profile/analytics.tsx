@@ -25,6 +25,7 @@ import {
   consistencyScore,
 } from '../../../src/services/progressAnalyticsService';
 import type { ProgressTrend } from '../../../src/services/progressAnalyticsService';
+import { LineChart } from '../../../src/components/charts/LineChart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,53 +60,6 @@ function formatDate(iso: string): string {
 
 function formatKgChange(val: number): string {
   return val > 0 ? `+${val}kg` : `${val}kg`;
-}
-
-// ─── Mini weight chart (SVG-free) ─────────────────────────────────────────────
-
-interface SparklineProps {
-  values: number[];
-  color: string;
-}
-
-function Sparkline({ values, color }: SparklineProps) {
-  if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const WIDTH = 200;
-  const HEIGHT = 48;
-  const step = WIDTH / (values.length - 1);
-
-  const points = values
-    .map((v, i) => {
-      const x = i * step;
-      const y = HEIGHT - ((v - min) / range) * HEIGHT;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  // Render as a simple bar series using React Native views (no SVG dependency needed here)
-  const barWidth = Math.max(3, (WIDTH / values.length) - 2);
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: HEIGHT, gap: 2 }}>
-      {values.map((v, i) => {
-        const heightPct = ((v - min) / range) * HEIGHT || 4;
-        return (
-          <View
-            key={i}
-            style={{
-              width: barWidth,
-              height: heightPct,
-              backgroundColor: color,
-              borderRadius: 2,
-              opacity: i === values.length - 1 ? 1 : 0.5,
-            }}
-          />
-        );
-      })}
-    </View>
-  );
 }
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
@@ -307,16 +261,16 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {/* Sparkline */}
+          {/* Weight line chart */}
           <View style={{ marginTop: spacing.sm }}>
-            <Sparkline
-              values={sorted.map((e) => e.value)}
+            <LineChart
+              data={sorted.map((e) => ({ x: e.date.slice(5), y: e.value }))}
               color={trendColor(insightsTrend, colors)}
+              height={180}
+              showTrendline
+              yLabel={(v) => `${v.toFixed(1)}`}
+              xLabel={(s) => s}
             />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-              <Text style={typography.caption}>{first?.date}</Text>
-              <Text style={typography.caption}>{last?.date}</Text>
-            </View>
           </View>
         </View>
 
@@ -428,6 +382,21 @@ export default function AnalyticsScreen() {
               })}
           </View>
         )}
+
+        {/* Workout charts link */}
+        <TouchableOpacity
+          style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+          onPress={() => router.push('/(tabs)/profile/workout-charts' as any)}
+          activeOpacity={0.8}
+        >
+          <View>
+            <Text style={styles.cardTitle}>💪 Workout Charts</Text>
+            <Text style={[typography.small, { color: colors.textSecondary }]}>
+              Volume trend · Personal Records history
+            </Text>
+          </View>
+          <Text style={{ fontSize: 20, color: colors.textSecondary }}>›</Text>
+        </TouchableOpacity>
 
         {/* Footer timestamp */}
         {aiInsights && (

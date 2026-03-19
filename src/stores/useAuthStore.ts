@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile, FitnessGoal, Gender, DietType, ActivityLevel } from '../types/user';
 import type { Equipment } from '../types/exercise';
 import authService from '../services/authService';
+import firebaseAuthService from '../services/firebaseAuthService';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -111,7 +112,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       loginAsync: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const { user } = await authService.login({ email, password });
+          // Use Firebase Auth when configured, fall back to mock REST API
+          const user = firebaseAuthService.isConfigured()
+            ? await firebaseAuthService.login(email, password)
+            : (await authService.login({ email, password })).user;
           set({ isAuthenticated: true, user, isLoading: false });
         } catch (err) {
           set({ isLoading: false, error: (err as Error).message });
@@ -122,7 +126,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       registerAsync: async (name, email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const { user } = await authService.register({ name, email, password });
+          const user = firebaseAuthService.isConfigured()
+            ? await firebaseAuthService.register(name, email, password)
+            : (await authService.register({ name, email, password })).user;
           set({ isAuthenticated: true, user, isLoading: false });
         } catch (err) {
           set({ isLoading: false, error: (err as Error).message });
@@ -133,7 +139,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       logoutAsync: async () => {
         set({ isLoading: true });
         try {
-          await authService.logout();
+          if (firebaseAuthService.isConfigured()) {
+            await firebaseAuthService.logout();
+          } else {
+            await authService.logout();
+          }
         } catch {
           // Ignore — local state is cleared regardless
         } finally {
@@ -143,7 +153,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       syncProfileAsync: async () => {
         try {
-          const user = await authService.getProfile();
+          const user = firebaseAuthService.isConfigured()
+            ? await firebaseAuthService.getProfile()
+            : await authService.getProfile();
           set({ user });
         } catch {
           // Silently fail — local profile is the fallback
@@ -153,10 +165,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       updateProfileAsync: async (updates) => {
         set({ isLoading: true, error: null });
         try {
-          const user = await authService.updateProfile(updates);
+          const user = firebaseAuthService.isConfigured()
+            ? await firebaseAuthService.updateProfile(updates)
+            : await authService.updateProfile(updates);
           set({ user, isLoading: false });
         } catch (err) {
-          // Optimistic local update already done via updateProfile(); revert on error
           set({ isLoading: false, error: (err as Error).message });
           throw err;
         }

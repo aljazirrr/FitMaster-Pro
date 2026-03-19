@@ -9,6 +9,7 @@ import type {
   PersonalRecord,
 } from '../types/workout';
 import workoutService from '../services/workoutService';
+import { saveWorkoutSession, fetchWorkoutHistory, savePersonalRecord, fetchPersonalRecords } from '../services/firestoreService';
 
 interface WorkoutState {
   activeWorkout: WorkoutSession | null;
@@ -248,7 +249,10 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
           weeklyWorkouts: state.weeklyWorkouts + 1,
         }));
 
-        // Persist to backend (fire-and-forget — local state is already updated)
+        // Persist to Firestore (fire-and-forget — local state is already updated)
+        saveWorkoutSession(completedWorkout).catch(() => {});
+
+        // Also try legacy REST API if available
         try {
           const saved = await workoutService.save({
             name: completedWorkout.name,
@@ -258,22 +262,27 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
             duration: completedWorkout.duration,
             exercises: completedWorkout.exercises,
           });
-          // Replace optimistic entry with server's canonical version (has real ID)
           set((state) => ({
             workoutHistory: state.workoutHistory.map((w) =>
               w.id === completedWorkout.id ? saved : w,
             ),
           }));
         } catch {
-          // Offline — local entry remains; will sync on next syncHistoryAsync call
+          // Offline — local entry remains
         }
       },
 
       syncHistoryAsync: async () => {
         set({ isSyncing: true });
         try {
-          const history = await workoutService.getHistory();
-          set({ workoutHistory: history, isSyncing: false });
+          // Prefer Firestore; fall back to REST API
+          const firebaseHistory = await fetchWorkoutHistory();
+          if (firebaseHistory.length > 0) {
+            set({ workoutHistory: firebaseHistory, isSyncing: false });
+          } else {
+            const history = await workoutService.getHistory();
+            set({ workoutHistory: history, isSyncing: false });
+          }
         } catch {
           set({ isSyncing: false });
         }
@@ -281,8 +290,13 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
 
       syncPersonalRecordsAsync: async () => {
         try {
-          const records = await workoutService.getPersonalRecords();
-          set({ personalRecords: records });
+          const firebaseRecords = await fetchPersonalRecords();
+          if (firebaseRecords.length > 0) {
+            set({ personalRecords: firebaseRecords });
+          } else {
+            const records = await workoutService.getPersonalRecords();
+            set({ personalRecords: records });
+          }
         } catch {
           // Silently keep local records
         }

@@ -14,6 +14,12 @@ module.exports = {
     '^@anthropic-ai/sdk$': '<rootDir>/__mocks__/@anthropic-ai/sdk.js',
     '^expo-speech$': '<rootDir>/__mocks__/expo-speech.js',
     '^expo-camera$': '<rootDir>/__mocks__/expo-camera.js',
+    // Firebase — mock all sub-modules in tests
+    '^firebase/app$': '<rootDir>/__mocks__/firebase/app.js',
+    '^firebase/auth$': '<rootDir>/__mocks__/firebase/auth.js',
+    '^firebase/auth/react-native$': '<rootDir>/__mocks__/firebase/auth-react-native.js',
+    '^firebase/firestore$': '<rootDir>/__mocks__/firebase/firestore.js',
+    '^firebase/storage$': '<rootDir>/__mocks__/firebase/storage.js',
   },
   // Don't transform node_modules except zustand (ESM)
   transformIgnorePatterns: [

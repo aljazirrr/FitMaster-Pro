@@ -12,6 +12,7 @@ import nutritionService from '../services/nutritionService';
 import { lookupBarcode } from '../services/barcodeScannerService';
 import type { BarcodeLookupResult } from '../services/barcodeScannerService';
 import type { AIMealPlan } from '../services/aiMealPlanService';
+import { saveMealPlanToFirestore } from '../services/firestoreService';
 
 interface NutritionState {
   dailyLog: Record<string, DailyNutrition>;
@@ -263,13 +264,16 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
 
       clearScannedFood: () => set({ scannedFood: null }),
 
-      saveMealPlan: (plan) =>
+      saveMealPlan: (plan) => {
         set((state) => ({
           savedMealPlans: [
             plan,
             ...state.savedMealPlans.filter((p) => p.id !== plan.id),
           ],
-        })),
+        }));
+        // Sync to Firestore (fire-and-forget)
+        saveMealPlanToFirestore(plan).catch(() => {});
+      },
 
       removeMealPlan: (planId) =>
         set((state) => ({
