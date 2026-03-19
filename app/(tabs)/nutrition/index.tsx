@@ -823,13 +823,22 @@ export default function NutritionScreen() {
       {/* Header */}
       <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <Text style={styles.screenTitle}>{t('nutrition.title')}</Text>
-        <TouchableOpacity
-          style={{ backgroundColor: theme.colors.primary, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-          onPress={() => router.push('/(tabs)/nutrition/scanner' as any)}
-        >
-          <Text style={{ fontSize: 16 }}>📷</Text>
-          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Scan</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={{ backgroundColor: `${theme.colors.primary}22`, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            onPress={() => router.push('/(tabs)/nutrition/generate-meal-plan' as any)}
+          >
+            <Text style={{ fontSize: 14 }}>✨</Text>
+            <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '700' }}>AI Plan</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ backgroundColor: theme.colors.primary, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            onPress={() => router.push('/(tabs)/nutrition/scanner' as any)}
+          >
+            <Text style={{ fontSize: 14 }}>📷</Text>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Scan</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Date Navigation */}

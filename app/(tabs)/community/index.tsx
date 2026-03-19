@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { useCommunityStore } from '../../../src/stores/useCommunityStore';
+import { useWorkoutStore } from '../../../src/stores/useWorkoutStore';
+import { useAuthStore } from '../../../src/stores/useAuthStore';
 import type { Post, Challenge, LeaderboardEntry } from '../../../src/types/community';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -380,11 +382,49 @@ function LeaderboardTab({ styles }: LeaderboardTabProps) {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { leaderboard } = useCommunityStore();
+  const { workoutHistory, totalWorkouts } = useWorkoutStore();
+  const { user } = useAuthStore();
 
-  const entries = leaderboard.length > 0 ? leaderboard : MOCK_LEADERBOARD;
+  // Build a leaderboard that includes the real local user as well as mock entries
+  const realEntries = useMemo(() => {
+    // Calculate this week's volume for the current user
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diffToMon = (dayOfWeek + 6) % 7;
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(now.getDate() - diffToMon);
+
+    const weeklyVolume = workoutHistory
+      .filter((s) => new Date(s.date + 'T00:00:00') >= weekStart)
+      .reduce(
+        (vol, s) =>
+          vol +
+          s.exercises.reduce(
+            (v, ex) =>
+              v + ex.sets.filter((set) => set.completed).reduce((sv, set) => sv + set.weight * set.reps, 0),
+            0,
+          ),
+        0,
+      );
+
+    const userName = user?.name ?? 'You';
+
+    // Merge the real user into the mock leaderboard
+    const base: LeaderboardEntry[] = leaderboard.length > 0 ? leaderboard : MOCK_LEADERBOARD;
+    const withUser: LeaderboardEntry[] = [
+      { rank: 0, userId: 'local-user', userName: `⭐ ${userName}`, score: Math.round(weeklyVolume), label: 'kg volume' },
+      ...base.filter((e) => e.userId !== 'local-user'),
+    ];
+    // Re-rank by score descending
+    return [...withUser]
+      .sort((a, b) => b.score - a.score)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [leaderboard, workoutHistory, user]);
+
   const sorted = useMemo(
-    () => [...entries].sort((a, b) => a.rank - b.rank),
-    [entries],
+    () => [...realEntries].sort((a, b) => a.rank - b.rank),
+    [realEntries],
   );
 
   return (

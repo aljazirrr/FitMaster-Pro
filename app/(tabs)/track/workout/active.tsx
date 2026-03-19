@@ -682,7 +682,7 @@ export default function ActiveWorkoutScreen() {
               : undefined;
 
             finishWorkout();
-            router.replace('/(tabs)/track');
+            router.replace('/(tabs)/track/workout/summary' as any);
 
             // Fire-and-forget summary (speaks while navigating away)
             coach.requestSummary({

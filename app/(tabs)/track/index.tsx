@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -121,7 +120,7 @@ function RecentWorkoutCard({ session, styles }: RecentWorkoutCardProps) {
   const volume = calcVolume(session);
 
   const handlePress = () => {
-    Alert.alert('Coming Soon', 'Workout detail view coming soon.');
+    router.push({ pathname: '/(tabs)/track/workout/summary', params: { sessionId: session.id } } as any);
   };
 
   return (
@@ -188,6 +187,7 @@ function PRCard({ record, styles }: PRCardProps) {
 export default function TrackScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
+  const { colors } = theme;
   const styles = createStyles(theme);
 
   const {
@@ -318,9 +318,18 @@ export default function TrackScreen() {
         {/* Recent Workouts */}
         {recentWorkouts.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('track.recentWorkouts', 'Recent Workouts')}
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.sectionTitle}>
+                {t('track.recentWorkouts', 'Recent Workouts')}
+              </Text>
+              {workoutHistory.length > 5 && (
+                <Pressable onPress={() => router.push('/(tabs)/track/history' as any)}>
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                    {t('common.viewAll', 'View All')} ({workoutHistory.length})
+                  </Text>
+                </Pressable>
+              )}
+            </View>
             {recentWorkouts.map((session) => (
               <RecentWorkoutCard key={session.id} session={session} styles={styles} />
             ))}

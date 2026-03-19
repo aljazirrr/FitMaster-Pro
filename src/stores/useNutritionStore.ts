@@ -11,6 +11,7 @@ import type {
 import nutritionService from '../services/nutritionService';
 import { lookupBarcode } from '../services/barcodeScannerService';
 import type { BarcodeLookupResult } from '../services/barcodeScannerService';
+import type { AIMealPlan } from '../services/aiMealPlanService';
 
 interface NutritionState {
   dailyLog: Record<string, DailyNutrition>;
@@ -20,6 +21,8 @@ interface NutritionState {
   // Barcode scanner state
   scannedFood: BarcodeLookupResult | null;
   isScanningBarcode: boolean;
+  // Saved AI meal plans
+  savedMealPlans: AIMealPlan[];
 }
 
 interface NutritionActions {
@@ -44,6 +47,8 @@ interface NutritionActions {
   searchFoodsAsync: (query: string) => Promise<void>;
   scanBarcodeAsync: (barcode: string, language?: 'en' | 'ro') => Promise<void>;
   clearScannedFood: () => void;
+  saveMealPlan: (plan: AIMealPlan) => void;
+  removeMealPlan: (planId: string) => void;
 }
 
 function generateId(): string {
@@ -97,6 +102,7 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
       isSyncing: false,
       scannedFood: null,
       isScanningBarcode: false,
+      savedMealPlans: [],
 
       // ── Local actions ──────────────────────────────────────────────────────
 
@@ -256,6 +262,19 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
       },
 
       clearScannedFood: () => set({ scannedFood: null }),
+
+      saveMealPlan: (plan) =>
+        set((state) => ({
+          savedMealPlans: [
+            plan,
+            ...state.savedMealPlans.filter((p) => p.id !== plan.id),
+          ],
+        })),
+
+      removeMealPlan: (planId) =>
+        set((state) => ({
+          savedMealPlans: state.savedMealPlans.filter((p) => p.id !== planId),
+        })),
     }),
     {
       name: 'fitmaster-nutrition',
@@ -264,6 +283,7 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
       partialize: (state) => ({
         dailyLog: state.dailyLog,
         shoppingList: state.shoppingList,
+        savedMealPlans: state.savedMealPlans,
       }),
     },
   ),
