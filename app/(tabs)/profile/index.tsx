@@ -434,7 +434,7 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const { colors, spacing, typography } = theme;
 
-  const { user, logout } = useAuthStore();
+  const { user, logoutAsync } = useAuthStore();
   const { totalWorkouts, personalRecords } = useWorkoutStore();
   const { weightEntries, photos, addWeight } = useProgressStore();
   const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotifications } = useSettingsStore();
@@ -460,8 +460,8 @@ export default function ProfileScreen() {
       {
         text: 'Log Out',
         style: 'destructive',
-        onPress: () => {
-          logout();
+        onPress: async () => {
+          await logoutAsync();
           router.replace('/(auth)/login');
         },
       },

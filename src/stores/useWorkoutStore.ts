@@ -7,6 +7,7 @@ import type {
   WorkoutSet,
   PersonalRecord,
 } from '../types/workout';
+import workoutService from '../services/workoutService';
 
 interface WorkoutState {
   activeWorkout: WorkoutSession | null;
@@ -14,18 +15,24 @@ interface WorkoutState {
   personalRecords: PersonalRecord[];
   totalWorkouts: number;
   weeklyWorkouts: number;
+  isSyncing: boolean;
 }
 
 interface WorkoutActions {
+  // ── Local (sync) actions ──────────────────────────────────────────────────
   startWorkout: (name?: string) => void;
   addExercise: (exerciseId: string) => void;
   addSet: (exerciseId: string) => void;
   updateSet: (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => void;
   removeSet: (exerciseId: string, setId: string) => void;
   removeExercise: (exerciseIndex: number) => void;
-  finishWorkout: () => void;
   cancelWorkout: () => void;
   addPersonalRecord: (record: PersonalRecord) => void;
+
+  // ── Async actions ─────────────────────────────────────────────────────────
+  finishWorkout: () => Promise<void>;
+  syncHistoryAsync: () => Promise<void>;
+  syncPersonalRecordsAsync: () => Promise<void>;
 }
 
 function generateId(): string {
@@ -99,40 +106,21 @@ const mockHistory: WorkoutSession[] = [
 export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
   persist(
     (set, get) => ({
-      // State
+      // ── State ─────────────────────────────────────────────────────────────
       activeWorkout: null,
       workoutHistory: mockHistory,
       personalRecords: [
-        {
-          id: 'pr1',
-          exerciseId: 'bench-press',
-          weight: 100,
-          reps: 6,
-          date: '2026-03-17',
-          oneRepMax: 116,
-        },
-        {
-          id: 'pr2',
-          exerciseId: 'squat',
-          weight: 130,
-          reps: 6,
-          date: '2026-03-15',
-          oneRepMax: 152,
-        },
-        {
-          id: 'pr3',
-          exerciseId: 'deadlift',
-          weight: 150,
-          reps: 5,
-          date: '2026-03-16',
-          oneRepMax: 175,
-        },
+        { id: 'pr1', exerciseId: 'bench-press', weight: 100, reps: 6, date: '2026-03-17', oneRepMax: 116 },
+        { id: 'pr2', exerciseId: 'squat', weight: 130, reps: 6, date: '2026-03-15', oneRepMax: 152 },
+        { id: 'pr3', exerciseId: 'deadlift', weight: 150, reps: 5, date: '2026-03-16', oneRepMax: 175 },
       ],
       totalWorkouts: 47,
       weeklyWorkouts: 3,
+      isSyncing: false,
 
-      // Actions
-      startWorkout: (name?: string) =>
+      // ── Local actions ──────────────────────────────────────────────────────
+
+      startWorkout: (name) =>
         set({
           activeWorkout: {
             id: generateId(),
@@ -145,25 +133,15 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
           },
         }),
 
-      addExercise: (exerciseId: string) =>
+      addExercise: (exerciseId) =>
         set((state) => {
           if (!state.activeWorkout) return state;
-
           const newExercise: WorkoutExercise = {
             id: generateId(),
             exerciseId,
-            sets: [
-              {
-                id: generateId(),
-                reps: 0,
-                weight: 0,
-                type: 'normal',
-                completed: false,
-              },
-            ],
+            sets: [{ id: generateId(), reps: 0, weight: 0, type: 'normal', completed: false }],
             isSuperset: false,
           };
-
           return {
             activeWorkout: {
               ...state.activeWorkout,
@@ -172,13 +150,11 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
           };
         }),
 
-      addSet: (exerciseId: string) =>
+      addSet: (exerciseId) =>
         set((state) => {
           if (!state.activeWorkout) return state;
-
           const exercises = state.activeWorkout.exercises.map((ex) => {
             if (ex.id !== exerciseId && ex.exerciseId !== exerciseId) return ex;
-
             const lastSet = ex.sets[ex.sets.length - 1];
             const newSet: WorkoutSet = {
               id: generateId(),
@@ -187,49 +163,32 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
               type: 'normal',
               completed: false,
             };
-
             return { ...ex, sets: [...ex.sets, newSet] };
           });
-
-          return {
-            activeWorkout: { ...state.activeWorkout, exercises },
-          };
+          return { activeWorkout: { ...state.activeWorkout, exercises } };
         }),
 
-      updateSet: (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) =>
+      updateSet: (exerciseId, setId, updates) =>
         set((state) => {
           if (!state.activeWorkout) return state;
-
           const exercises = state.activeWorkout.exercises.map((ex) => {
             if (ex.id !== exerciseId && ex.exerciseId !== exerciseId) return ex;
-
-            const sets = ex.sets.map((s) =>
-              s.id === setId ? { ...s, ...updates } : s,
-            );
-
-            return { ...ex, sets };
+            return { ...ex, sets: ex.sets.map((s) => (s.id === setId ? { ...s, ...updates } : s)) };
           });
-
-          return {
-            activeWorkout: { ...state.activeWorkout, exercises },
-          };
+          return { activeWorkout: { ...state.activeWorkout, exercises } };
         }),
 
-      removeSet: (exerciseId: string, setId: string) =>
+      removeSet: (exerciseId, setId) =>
         set((state) => {
           if (!state.activeWorkout) return state;
-
           const exercises = state.activeWorkout.exercises.map((ex) => {
             if (ex.id !== exerciseId && ex.exerciseId !== exerciseId) return ex;
             return { ...ex, sets: ex.sets.filter((s) => s.id !== setId) };
           });
-
-          return {
-            activeWorkout: { ...state.activeWorkout, exercises },
-          };
+          return { activeWorkout: { ...state.activeWorkout, exercises } };
         }),
 
-      removeExercise: (exerciseIndex: number) =>
+      removeExercise: (exerciseIndex) =>
         set((state) => {
           if (!state.activeWorkout) return state;
           const exercises = [...state.activeWorkout.exercises];
@@ -237,15 +196,27 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
           return { activeWorkout: { ...state.activeWorkout, exercises } };
         }),
 
-      finishWorkout: () => {
+      cancelWorkout: () => set({ activeWorkout: null }),
+
+      addPersonalRecord: (record) =>
+        set((state) => ({
+          personalRecords: [
+            ...state.personalRecords.filter(
+              (pr) => pr.exerciseId !== record.exerciseId || pr.oneRepMax > record.oneRepMax,
+            ),
+            record,
+          ],
+        })),
+
+      // ── Async actions ──────────────────────────────────────────────────────
+
+      finishWorkout: async () => {
         const { activeWorkout } = get();
         if (!activeWorkout) return;
 
         const now = new Date();
         const startTime = new Date(activeWorkout.startTime);
-        const durationSeconds = Math.floor(
-          (now.getTime() - startTime.getTime()) / 1000,
-        );
+        const durationSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
 
         const completedWorkout: WorkoutSession = {
           ...activeWorkout,
@@ -254,27 +225,53 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
           completed: true,
         };
 
+        // Optimistic local update
         set((state) => ({
           activeWorkout: null,
           workoutHistory: [completedWorkout, ...state.workoutHistory],
           totalWorkouts: state.totalWorkouts + 1,
           weeklyWorkouts: state.weeklyWorkouts + 1,
         }));
+
+        // Persist to backend (fire-and-forget — local state is already updated)
+        try {
+          const saved = await workoutService.save({
+            name: completedWorkout.name,
+            date: completedWorkout.date,
+            startTime: completedWorkout.startTime,
+            endTime: completedWorkout.endTime!,
+            duration: completedWorkout.duration,
+            exercises: completedWorkout.exercises,
+          });
+          // Replace optimistic entry with server's canonical version (has real ID)
+          set((state) => ({
+            workoutHistory: state.workoutHistory.map((w) =>
+              w.id === completedWorkout.id ? saved : w,
+            ),
+          }));
+        } catch {
+          // Offline — local entry remains; will sync on next syncHistoryAsync call
+        }
       },
 
-      cancelWorkout: () => set({ activeWorkout: null }),
+      syncHistoryAsync: async () => {
+        set({ isSyncing: true });
+        try {
+          const history = await workoutService.getHistory();
+          set({ workoutHistory: history, isSyncing: false });
+        } catch {
+          set({ isSyncing: false });
+        }
+      },
 
-      addPersonalRecord: (record: PersonalRecord) =>
-        set((state) => ({
-          personalRecords: [
-            ...state.personalRecords.filter(
-              (pr) =>
-                pr.exerciseId !== record.exerciseId ||
-                pr.oneRepMax > record.oneRepMax,
-            ),
-            record,
-          ],
-        })),
+      syncPersonalRecordsAsync: async () => {
+        try {
+          const records = await workoutService.getPersonalRecords();
+          set({ personalRecords: records });
+        } catch {
+          // Silently keep local records
+        }
+      },
     }),
     {
       name: 'fitmaster-workouts',

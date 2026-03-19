@@ -11,7 +11,7 @@ import Button from '../../src/components/ui/Button';
 export default function RegisterScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
-  const register = useAuthStore((s) => s.register);
+  const registerAsync = useAuthStore((s) => s.registerAsync);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,14 +23,17 @@ export default function RegisterScreen() {
   const passwordsMatch = password === confirmPassword;
   const isValid = name && email && password && confirmPassword && passwordsMatch;
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!isValid) return;
     setLoading(true);
-    setTimeout(() => {
-      register(name, email, password);
-      setLoading(false);
+    try {
+      await registerAsync(name, email, password);
       router.replace('/onboarding');
-    }, 800);
+    } catch {
+      // Error stored in auth store
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

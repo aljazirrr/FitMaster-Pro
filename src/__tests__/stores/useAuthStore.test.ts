@@ -1,5 +1,19 @@
 import { useAuthStore } from '../../stores/useAuthStore';
 
+jest.mock('../../services/authService', () => ({
+  __esModule: true,
+  default: {
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    getProfile: jest.fn(),
+    updateProfile: jest.fn(),
+  },
+}));
+
+import authService from '../../services/authService';
+const mockAuth = authService as jest.Mocked<typeof authService>;
+
 const defaultUser = {
   id: '1',
   name: 'Alex',
@@ -54,35 +68,50 @@ describe('useAuthStore', () => {
     });
   });
 
-  describe('login', () => {
-    it('authenticates user with given email', () => {
+  describe('loginAsync', () => {
+    it('sets user and isAuthenticated on success', async () => {
+      const user = { ...defaultUser, email: 'test@example.com', lastActive: new Date().toISOString() } as any;
+      mockAuth.login.mockResolvedValueOnce({ user, tokens: { accessToken: 'a', refreshToken: 'r' } });
       useAuthStore.setState({ isAuthenticated: false, user: null });
-      useAuthStore.getState().login('test@example.com', 'password');
-      const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.user?.email).toBe('test@example.com');
+      await useAuthStore.getState().loginAsync('test@example.com', 'password');
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().user?.email).toBe('test@example.com');
+    });
+
+    it('sets error on failure', async () => {
+      mockAuth.login.mockRejectedValueOnce(new Error('Invalid credentials'));
+      await expect(useAuthStore.getState().loginAsync('bad@example.com', 'wrong')).rejects.toThrow();
+      expect(useAuthStore.getState().error).toBe('Invalid credentials');
+      expect(useAuthStore.getState().isLoading).toBe(false);
     });
   });
 
-  describe('register', () => {
-    it('registers user with name and email', () => {
-      useAuthStore.setState({ isAuthenticated: false, user: null });
-      useAuthStore.getState().register('Maria', 'maria@example.com', 'pass');
-      const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.user?.name).toBe('Maria');
-      expect(state.user?.email).toBe('maria@example.com');
+  describe('registerAsync', () => {
+    it('sets user and isAuthenticated on success', async () => {
+      const user = { ...defaultUser, name: 'Maria', email: 'maria@example.com', lastActive: new Date().toISOString() } as any;
+      mockAuth.register.mockResolvedValueOnce({ user, tokens: { accessToken: 'a', refreshToken: 'r' } });
+      await useAuthStore.getState().registerAsync('Maria', 'maria@example.com', 'pass');
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().user?.name).toBe('Maria');
     });
   });
 
-  describe('logout', () => {
-    it('clears user and authentication state', () => {
-      useAuthStore.getState().logout();
+  describe('logoutAsync', () => {
+    it('clears user and authentication state', async () => {
+      mockAuth.logout.mockResolvedValueOnce(undefined);
+      await useAuthStore.getState().logoutAsync();
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
       expect(state.isOnboarded).toBe(false);
       expect(state.isLoading).toBe(false);
+    });
+
+    it('clears state even if server call fails', async () => {
+      mockAuth.logout.mockRejectedValueOnce(new Error('Network error'));
+      await useAuthStore.getState().logoutAsync();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().user).toBeNull();
     });
   });
 

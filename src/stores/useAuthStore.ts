@@ -3,19 +3,19 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile, FitnessGoal, Gender, DietType, ActivityLevel } from '../types/user';
 import type { Equipment } from '../types/exercise';
+import authService from '../services/authService';
 
 interface AuthState {
   isAuthenticated: boolean;
   isOnboarded: boolean;
   isLoading: boolean;
+  error: string | null;
   user: UserProfile | null;
 }
 
 interface AuthActions {
+  // ── Local (sync) actions — used during onboarding flow ──────────────────
   setUser: (user: UserProfile | null) => void;
-  login: (email: string, password: string) => void;
-  register: (name: string, email: string, password: string) => void;
-  logout: () => void;
   setOnboarded: (onboarded: boolean) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   setGoal: (goal: FitnessGoal) => void;
@@ -23,6 +23,13 @@ interface AuthActions {
   setExperience: (level: string) => void;
   setEquipment: (equipment: Equipment[]) => void;
   setPreferences: (diet: DietType, activity: ActivityLevel) => void;
+
+  // ── Async actions — hit the real API ─────────────────────────────────────
+  loginAsync: (email: string, password: string) => Promise<void>;
+  registerAsync: (name: string, email: string, password: string) => Promise<void>;
+  logoutAsync: () => Promise<void>;
+  syncProfileAsync: () => Promise<void>;
+  updateProfileAsync: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 const defaultUser: UserProfile = {
@@ -53,59 +60,107 @@ const defaultUser: UserProfile = {
 export const useAuthStore = create<AuthState & AuthActions>()(
   persist(
     (set) => ({
-      // State
+      // ── State ────────────────────────────────────────────────────────────────
       isAuthenticated: true,
       isOnboarded: false,
       isLoading: false,
+      error: null,
       user: defaultUser,
 
-      // Actions
-      setUser: (user: UserProfile | null) =>
-        set({ user, isAuthenticated: !!user }),
+      // ── Local actions ─────────────────────────────────────────────────────
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
 
-      login: (email: string, _password: string) =>
-        set({ isAuthenticated: true, user: { ...defaultUser, email } }),
+      setOnboarded: (onboarded) => set({ isOnboarded: onboarded }),
 
-      register: (name: string, email: string, _password: string) =>
-        set({ isAuthenticated: true, user: { ...defaultUser, name, email } }),
-
-      logout: () =>
-        set({ isAuthenticated: false, user: null, isOnboarded: false, isLoading: false }),
-
-      setOnboarded: (onboarded: boolean) =>
-        set({ isOnboarded: onboarded }),
-
-      updateProfile: (updates: Partial<UserProfile>) =>
+      updateProfile: (updates) =>
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
 
-      setGoal: (goal: FitnessGoal) =>
+      setGoal: (goal) =>
         set((state) => ({
           user: state.user ? { ...state.user, goals: [goal] } : null,
         })),
 
-      setMeasurements: (weight: number, height: number, age: number, gender: Gender) =>
+      setMeasurements: (weight, height, age, gender) =>
         set((state) => ({
           user: state.user
             ? { ...state.user, measurements: { ...state.user.measurements, weight, height, age, gender } }
             : null,
         })),
 
-      setExperience: (level: string) =>
+      setExperience: (level) =>
         set((state) => ({
           user: state.user ? { ...state.user, experience: level } : null,
         })),
 
-      setEquipment: (equipment: Equipment[]) =>
+      setEquipment: (equipment) =>
         set((state) => ({
           user: state.user ? { ...state.user, equipment } : null,
         })),
 
-      setPreferences: (diet: DietType, activity: ActivityLevel) =>
+      setPreferences: (diet, activity) =>
         set((state) => ({
-          user: state.user ? { ...state.user, dietPreference: diet, activityLevel: activity } : null,
+          user: state.user
+            ? { ...state.user, dietPreference: diet, activityLevel: activity }
+            : null,
         })),
+
+      // ── Async actions ─────────────────────────────────────────────────────
+
+      loginAsync: async (email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { user } = await authService.login({ email, password });
+          set({ isAuthenticated: true, user, isLoading: false });
+        } catch (err) {
+          set({ isLoading: false, error: (err as Error).message });
+          throw err;
+        }
+      },
+
+      registerAsync: async (name, email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { user } = await authService.register({ name, email, password });
+          set({ isAuthenticated: true, user, isLoading: false });
+        } catch (err) {
+          set({ isLoading: false, error: (err as Error).message });
+          throw err;
+        }
+      },
+
+      logoutAsync: async () => {
+        set({ isLoading: true });
+        try {
+          await authService.logout();
+        } catch {
+          // Ignore — local state is cleared regardless
+        } finally {
+          set({ isAuthenticated: false, user: null, isOnboarded: false, isLoading: false, error: null });
+        }
+      },
+
+      syncProfileAsync: async () => {
+        try {
+          const user = await authService.getProfile();
+          set({ user });
+        } catch {
+          // Silently fail — local profile is the fallback
+        }
+      },
+
+      updateProfileAsync: async (updates) => {
+        set({ isLoading: true, error: null });
+        try {
+          const user = await authService.updateProfile(updates);
+          set({ user, isLoading: false });
+        } catch (err) {
+          // Optimistic local update already done via updateProfile(); revert on error
+          set({ isLoading: false, error: (err as Error).message });
+          throw err;
+        }
+      },
     }),
     {
       name: 'fitmaster-auth',

@@ -11,7 +11,7 @@ import Button from '../../src/components/ui/Button';
 export default function LoginScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
-  const login = useAuthStore((s) => s.login);
+  const loginAsync = useAuthStore((s) => s.loginAsync);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,13 +19,16 @@ export default function LoginScreen() {
 
   const styles = createStyles(theme);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => {
-      login(email, password);
-      setLoading(false);
+    try {
+      await loginAsync(email, password);
       router.replace('/(tabs)');
-    }, 800);
+    } catch {
+      // Error is stored in the auth store's `error` field
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
