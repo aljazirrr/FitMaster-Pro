@@ -5,6 +5,7 @@ import type {
   WorkoutSession,
   WorkoutExercise,
   WorkoutSet,
+  WorkoutPlan,
   PersonalRecord,
 } from '../types/workout';
 import workoutService from '../services/workoutService';
@@ -16,11 +17,14 @@ interface WorkoutState {
   totalWorkouts: number;
   weeklyWorkouts: number;
   isSyncing: boolean;
+  savedPlans: WorkoutPlan[];
 }
 
 interface WorkoutActions {
   // ── Local (sync) actions ──────────────────────────────────────────────────
   startWorkout: (name?: string) => void;
+  saveGeneratedPlan: (plan: WorkoutPlan) => void;
+  removeGeneratedPlan: (planId: string) => void;
   addExercise: (exerciseId: string) => void;
   addSet: (exerciseId: string) => void;
   updateSet: (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => void;
@@ -109,6 +113,7 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
       // ── State ─────────────────────────────────────────────────────────────
       activeWorkout: null,
       workoutHistory: mockHistory,
+      savedPlans: [],
       personalRecords: [
         { id: 'pr1', exerciseId: 'bench-press', weight: 100, reps: 6, date: '2026-03-17', oneRepMax: 116 },
         { id: 'pr2', exerciseId: 'squat', weight: 130, reps: 6, date: '2026-03-15', oneRepMax: 152 },
@@ -197,6 +202,16 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
         }),
 
       cancelWorkout: () => set({ activeWorkout: null }),
+
+      saveGeneratedPlan: (plan) =>
+        set((state) => ({
+          savedPlans: [plan, ...state.savedPlans.filter((p) => p.id !== plan.id)],
+        })),
+
+      removeGeneratedPlan: (planId) =>
+        set((state) => ({
+          savedPlans: state.savedPlans.filter((p) => p.id !== planId),
+        })),
 
       addPersonalRecord: (record) =>
         set((state) => ({

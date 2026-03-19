@@ -10,8 +10,8 @@ module.exports = {
       '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
     '^react-native$': '<rootDir>/__mocks__/react-native.js',
     '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
-    // Stub Expo Router's router for hook tests
     '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
+    '^@anthropic-ai/sdk$': '<rootDir>/__mocks__/@anthropic-ai/sdk.js',
   },
   // Don't transform node_modules except zustand (ESM)
   transformIgnorePatterns: [

@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -124,11 +123,7 @@ function AIGenerateCard({ colors, spacing, typography }: AICardProps) {
         </Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() =>
-            Alert.alert('Coming Soon', 'AI plan generation coming soon!', [
-              { text: 'OK' },
-            ])
-          }
+          onPress={() => router.push('/(tabs)/plans/generate')}
           activeOpacity={0.85}
         >
           <Text style={styles.buttonText}>Generate</Text>
