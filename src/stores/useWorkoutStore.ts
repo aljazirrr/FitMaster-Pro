@@ -44,84 +44,16 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
 
-const mockHistory: WorkoutSession[] = [
-  {
-    id: 'w1',
-    name: 'Push Day',
-    date: '2026-03-17',
-    startTime: '2026-03-17T09:00:00',
-    endTime: '2026-03-17T10:15:00',
-    duration: 4500,
-    exercises: [
-      {
-        id: 'we1',
-        exerciseId: 'bench-press',
-        sets: [
-          { id: 's1', reps: 10, weight: 80, type: 'normal', completed: true },
-          { id: 's2', reps: 8, weight: 90, type: 'normal', completed: true },
-          { id: 's3', reps: 6, weight: 100, type: 'normal', completed: true },
-        ],
-        isSuperset: false,
-      },
-    ],
-    completed: true,
-  },
-  {
-    id: 'w2',
-    name: 'Pull Day',
-    date: '2026-03-16',
-    startTime: '2026-03-16T08:00:00',
-    endTime: '2026-03-16T09:20:00',
-    duration: 4800,
-    exercises: [
-      {
-        id: 'we2',
-        exerciseId: 'deadlift',
-        sets: [
-          { id: 's4', reps: 5, weight: 140, type: 'normal', completed: true },
-          { id: 's5', reps: 5, weight: 150, type: 'normal', completed: true },
-        ],
-        isSuperset: false,
-      },
-    ],
-    completed: true,
-  },
-  {
-    id: 'w3',
-    name: 'Leg Day',
-    date: '2026-03-15',
-    startTime: '2026-03-15T10:00:00',
-    endTime: '2026-03-15T11:30:00',
-    duration: 5400,
-    exercises: [
-      {
-        id: 'we3',
-        exerciseId: 'squat',
-        sets: [
-          { id: 's6', reps: 8, weight: 120, type: 'normal', completed: true },
-          { id: 's7', reps: 6, weight: 130, type: 'normal', completed: true },
-        ],
-        isSuperset: false,
-      },
-    ],
-    completed: true,
-  },
-];
-
 export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
   persist(
     (set, get) => ({
       // ── State ─────────────────────────────────────────────────────────────
       activeWorkout: null,
-      workoutHistory: mockHistory,
+      workoutHistory: [],
       savedPlans: [],
-      personalRecords: [
-        { id: 'pr1', exerciseId: 'bench-press', weight: 100, reps: 6, date: '2026-03-17', oneRepMax: 116 },
-        { id: 'pr2', exerciseId: 'squat', weight: 130, reps: 6, date: '2026-03-15', oneRepMax: 152 },
-        { id: 'pr3', exerciseId: 'deadlift', weight: 150, reps: 5, date: '2026-03-16', oneRepMax: 175 },
-      ],
-      totalWorkouts: 47,
-      weeklyWorkouts: 3,
+      personalRecords: [],
+      totalWorkouts: 0,
+      weeklyWorkouts: 0,
       isSyncing: false,
 
       // ── Local actions ──────────────────────────────────────────────────────

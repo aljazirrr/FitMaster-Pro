@@ -70,34 +70,11 @@ function createDefaultDaily(date: string): DailyNutrition {
   };
 }
 
-const defaultTodayLog: DailyNutrition = {
-  date: todayStr,
-  targetCalories: 2500,
-  targetProtein: 180,
-  targetCarbs: 280,
-  targetFat: 70,
-  meals: {
-    breakfast: [
-      { id: 'me1', foodId: 'oatmeal', servings: 1, mealType: 'breakfast', timestamp: `${todayStr}T08:00:00` },
-      { id: 'me2', foodId: 'banana', servings: 1, mealType: 'breakfast', timestamp: `${todayStr}T08:00:00` },
-    ],
-    lunch: [
-      { id: 'me3', foodId: 'chicken-breast', servings: 1.5, mealType: 'lunch', timestamp: `${todayStr}T12:30:00` },
-      { id: 'me4', foodId: 'brown-rice', servings: 1, mealType: 'lunch', timestamp: `${todayStr}T12:30:00` },
-    ],
-    dinner: [],
-    snacks: [
-      { id: 'me5', foodId: 'protein-shake', servings: 1, mealType: 'snacks', timestamp: `${todayStr}T16:00:00` },
-    ],
-  },
-  water: { current: 5, target: 8 },
-};
-
 export const useNutritionStore = create<NutritionState & NutritionActions>()(
   persist(
     (set, get) => ({
       // ── State ─────────────────────────────────────────────────────────────
-      dailyLog: { [todayStr]: defaultTodayLog },
+      dailyLog: {},
       shoppingList: [],
       foodSearchResults: [],
       isSyncing: false,

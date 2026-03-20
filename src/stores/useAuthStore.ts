@@ -33,40 +33,15 @@ interface AuthActions {
   updateProfileAsync: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
-const defaultUser: UserProfile = {
-  id: '1',
-  name: 'Alex',
-  email: 'alex@fitmaster.com',
-  goals: ['build_muscle'],
-  measurements: {
-    weight: 80,
-    height: 178,
-    age: 28,
-    gender: 'male',
-  },
-  experience: 'intermediate',
-  activityLevel: 'active',
-  equipment: ['barbell', 'dumbbell', 'machine', 'cable'] as unknown as Equipment[],
-  dietPreference: 'standard',
-  language: 'en',
-  theme: 'dark',
-  unitSystem: 'metric',
-  isPremium: false,
-  streakDays: 12,
-  achievements: [],
-  joinDate: '2025-01-15',
-  lastActive: new Date().toISOString(),
-};
-
 export const useAuthStore = create<AuthState & AuthActions>()(
   persist(
     (set) => ({
       // ── State ────────────────────────────────────────────────────────────────
-      isAuthenticated: true,
+      isAuthenticated: false,
       isOnboarded: false,
       isLoading: false,
       error: null,
-      user: defaultUser,
+      user: null,
 
       // ── Local actions ─────────────────────────────────────────────────────
       setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -116,8 +91,26 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           if (firebaseAuthService.isConfigured()) {
             user = await firebaseAuthService.login(email, password);
           } else {
-            // Demo mode: no backend configured — accept any credentials
-            user = { ...defaultUser, email, name: email.split('@')[0] };
+            // Fallback: no backend configured — create minimal local user
+            user = {
+              id: Date.now().toString(),
+              name: email.split('@')[0],
+              email,
+              goals: [],
+              measurements: { weight: 0, height: 0, age: 0, gender: 'other' },
+              experience: 'beginner',
+              activityLevel: 'moderate',
+              equipment: [] as unknown as Equipment[],
+              dietPreference: 'standard',
+              language: 'en',
+              theme: 'dark',
+              unitSystem: 'metric',
+              isPremium: false,
+              streakDays: 0,
+              achievements: [],
+              joinDate: new Date().toISOString().split('T')[0],
+              lastActive: new Date().toISOString(),
+            };
           }
           set({ isAuthenticated: true, isOnboarded: true, user, isLoading: false });
         } catch (err) {
