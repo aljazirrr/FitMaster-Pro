@@ -165,4 +165,166 @@ export const workoutPlans: WorkoutPlan[] = [
       },
     ],
   },
+
+  // ── Pilates ───────────────────────────────────────────────────────────────
+  {
+    id: 'pilates-beginner',
+    name: 'Pilates Foundation',
+    nameRo: 'Pilates - Fundament',
+    description: 'A 4-week beginner Pilates program focusing on core strength, posture, and body awareness using mat-based exercises.',
+    descriptionRo: 'Program Pilates de 4 saptamani pentru incepatori, axat pe forta core, postura si constientizarea corpului.',
+    level: 'beginner',
+    daysPerWeek: 3,
+    category: 'pilates',
+    createdBy: 'FitMaster',
+    weeks: [
+      {
+        weekNumber: 1,
+        days: [
+          {
+            dayNumber: 1,
+            name: 'Core Activation',
+            exercises: [
+              { exerciseId: 'pilates-hundred', sets: 2, reps: 1, restSeconds: 60 },
+              { exerciseId: 'pilates-roll-up', sets: 3, reps: 6, restSeconds: 60 },
+              { exerciseId: 'pilates-leg-circle', sets: 2, reps: 5, restSeconds: 45 },
+              { exerciseId: 'cat-cow', sets: 2, reps: 10, restSeconds: 30 },
+              { exerciseId: 'plank', sets: 3, reps: 20, restSeconds: 60 },
+            ],
+          },
+          {
+            dayNumber: 2,
+            name: 'Spine & Mobility',
+            exercises: [
+              { exerciseId: 'pilates-swan', sets: 3, reps: 8, restSeconds: 45 },
+              { exerciseId: 'cat-cow', sets: 3, reps: 12, restSeconds: 30 },
+              { exerciseId: 'hip-flexor-stretch', sets: 2, reps: 30, restSeconds: 30 },
+              { exerciseId: 'worlds-greatest-stretch', sets: 2, reps: 5, restSeconds: 30 },
+              { exerciseId: 'yoga-child', sets: 2, reps: 60, restSeconds: 30 },
+            ],
+          },
+          {
+            dayNumber: 3,
+            name: 'Full Mat Flow',
+            exercises: [
+              { exerciseId: 'pilates-hundred', sets: 1, reps: 1, restSeconds: 30 },
+              { exerciseId: 'pilates-roll-up', sets: 3, reps: 8, restSeconds: 60 },
+              { exerciseId: 'pilates-leg-circle', sets: 3, reps: 6, restSeconds: 45 },
+              { exerciseId: 'pilates-swan', sets: 3, reps: 8, restSeconds: 45 },
+              { exerciseId: 'pilates-teaser', sets: 2, reps: 5, restSeconds: 60 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ── Yoga ─────────────────────────────────────────────────────────────────
+  {
+    id: 'yoga-beginner-flow',
+    name: 'Morning Yoga Flow',
+    nameRo: 'Yoga de Dimineata',
+    description: 'A gentle beginner yoga program to build flexibility, balance, and mindfulness. Perfect for morning routines.',
+    descriptionRo: 'Program yoga blând pentru incepatori, ideal pentru rutina de dimineata. Imbunatateste flexibilitatea si echilibrul.',
+    level: 'beginner',
+    daysPerWeek: 4,
+    category: 'yoga',
+    createdBy: 'FitMaster',
+    weeks: [
+      {
+        weekNumber: 1,
+        days: [
+          {
+            dayNumber: 1,
+            name: 'Sun Salutation Foundation',
+            exercises: [
+              { exerciseId: 'yoga-downward-dog', sets: 3, reps: 10, restSeconds: 30 },
+              { exerciseId: 'yoga-warrior1', sets: 3, reps: 30, restSeconds: 30 },
+              { exerciseId: 'cat-cow', sets: 3, reps: 10, restSeconds: 30 },
+              { exerciseId: 'yoga-child', sets: 2, reps: 60, restSeconds: 30 },
+            ],
+          },
+          {
+            dayNumber: 2,
+            name: 'Balance & Strength',
+            exercises: [
+              { exerciseId: 'yoga-tree', sets: 3, reps: 30, restSeconds: 30 },
+              { exerciseId: 'yoga-warrior1', sets: 3, reps: 30, restSeconds: 30 },
+              { exerciseId: 'yoga-downward-dog', sets: 4, reps: 10, restSeconds: 30 },
+              { exerciseId: 'plank', sets: 3, reps: 20, restSeconds: 45 },
+            ],
+          },
+          {
+            dayNumber: 3,
+            name: 'Hip Opening',
+            exercises: [
+              { exerciseId: 'hip-flexor-stretch', sets: 3, reps: 45, restSeconds: 30 },
+              { exerciseId: 'worlds-greatest-stretch', sets: 3, reps: 5, restSeconds: 30 },
+              { exerciseId: 'yoga-downward-dog', sets: 3, reps: 10, restSeconds: 30 },
+              { exerciseId: 'yoga-child', sets: 3, reps: 60, restSeconds: 30 },
+            ],
+          },
+          {
+            dayNumber: 4,
+            name: 'Restorative Flow',
+            exercises: [
+              { exerciseId: 'cat-cow', sets: 3, reps: 12, restSeconds: 30 },
+              { exerciseId: 'yoga-tree', sets: 2, reps: 45, restSeconds: 30 },
+              { exerciseId: 'pilates-swan', sets: 3, reps: 8, restSeconds: 30 },
+              { exerciseId: 'yoga-child', sets: 3, reps: 90, restSeconds: 30 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ── HIIT ─────────────────────────────────────────────────────────────────
+  {
+    id: 'hiit-beginner',
+    name: 'HIIT Basics',
+    nameRo: 'HIIT pentru Incepatori',
+    description: '3-day beginner HIIT program with short intense intervals and full rest periods. Burns fat and builds conditioning.',
+    descriptionRo: 'Program HIIT de 3 zile pentru incepatori. Intervale scurte si intense, ardere eficienta de grasime.',
+    level: 'beginner',
+    daysPerWeek: 3,
+    category: 'hiit',
+    createdBy: 'FitMaster',
+    weeks: [
+      {
+        weekNumber: 1,
+        days: [
+          {
+            dayNumber: 1,
+            name: 'Bodyweight Circuit',
+            exercises: [
+              { exerciseId: 'push-up', sets: 4, reps: 15, restSeconds: 30 },
+              { exerciseId: 'squat', sets: 4, reps: 20, restSeconds: 30 },
+              { exerciseId: 'plank', sets: 4, reps: 30, restSeconds: 30 },
+              { exerciseId: 'kettlebell-swing', sets: 4, reps: 15, restSeconds: 30 },
+            ],
+          },
+          {
+            dayNumber: 2,
+            name: 'Tabata Core',
+            exercises: [
+              { exerciseId: 'plank', sets: 8, reps: 20, restSeconds: 10 },
+              { exerciseId: 'push-up', sets: 8, reps: 10, restSeconds: 10 },
+              { exerciseId: 'squat', sets: 8, reps: 15, restSeconds: 10 },
+            ],
+          },
+          {
+            dayNumber: 3,
+            name: 'Full Body Blast',
+            exercises: [
+              { exerciseId: 'kettlebell-swing', sets: 5, reps: 20, restSeconds: 20 },
+              { exerciseId: 'push-up', sets: 5, reps: 15, restSeconds: 20 },
+              { exerciseId: 'squat', sets: 5, reps: 20, restSeconds: 20 },
+              { exerciseId: 'plank', sets: 3, reps: 45, restSeconds: 30 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];

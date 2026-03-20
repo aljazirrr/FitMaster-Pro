@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18n from '../i18n';
 import {
   requestPermissions,
   cancelAllNotifications,
@@ -81,7 +82,7 @@ const useSettingsStore = create<SettingsState & SettingsActions>()(
       theme: 'dark',
       language: 'en',
       units: 'metric',
-      notifications: true,
+      notifications: false,
       notificationsPermissionGranted: false,
       schedule: DEFAULT_SCHEDULE,
 
@@ -90,7 +91,10 @@ const useSettingsStore = create<SettingsState & SettingsActions>()(
       toggleTheme: () =>
         set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
 
-      setLanguage: (language) => set({ language }),
+      setLanguage: (language) => {
+        set({ language });
+        i18n.changeLanguage(language);
+      },
 
       setUnits: (units) => set({ units }),
 
@@ -144,6 +148,11 @@ const useSettingsStore = create<SettingsState & SettingsActions>()(
     {
       name: 'fitmaster-settings',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state?.language) {
+          i18n.changeLanguage(state.language);
+        }
+      },
     },
   ),
 );

@@ -441,6 +441,8 @@ export default function ProfileScreen() {
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
 
   const currentWeight =
     weightEntries.length > 0
@@ -973,7 +975,183 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ---- 6. Achievements ---- */}
+        {/* ---- 6. Security ---- */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Security</Text>
+          <View style={styles.settingsCard}>
+            <SettingsRow
+              label="Change Password"
+              colors={colors}
+              spacing={spacing}
+              typography={typography}
+            >
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    'Change Password',
+                    'A password reset link will be sent to your email address.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Send Link',
+                        onPress: () =>
+                          Alert.alert('Email Sent', 'Check your inbox for the reset link.'),
+                      },
+                    ],
+                  )
+                }
+                activeOpacity={0.7}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: spacing.borderRadius.sm,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.xs,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                  Reset
+                </Text>
+              </TouchableOpacity>
+            </SettingsRow>
+
+            <SettingsRow
+              label="Biometric Login"
+              colors={colors}
+              spacing={spacing}
+              typography={typography}
+            >
+              <Switch
+                value={biometricEnabled}
+                onValueChange={(val) => {
+                  if (val) {
+                    Alert.alert(
+                      'Enable Biometric Login',
+                      'Use fingerprint or face recognition to sign in faster.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Enable',
+                          onPress: () => setBiometricEnabled(true),
+                        },
+                      ],
+                    );
+                  } else {
+                    setBiometricEnabled(false);
+                  }
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.background}
+              />
+            </SettingsRow>
+
+            <SettingsRow
+              label="Face ID / Fingerprint"
+              colors={colors}
+              spacing={spacing}
+              typography={typography}
+            >
+              <Switch
+                value={biometricEnabled}
+                onValueChange={(val) => setBiometricEnabled(val)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.background}
+              />
+            </SettingsRow>
+
+            <SettingsRow
+              label="Two-Step Verification"
+              colors={colors}
+              spacing={spacing}
+              typography={typography}
+              isLast
+            >
+              <Switch
+                value={twoFAEnabled}
+                onValueChange={(val) => {
+                  if (val) {
+                    Alert.alert(
+                      'Enable 2-Step Verification',
+                      'You will receive a code via SMS or authenticator app each time you sign in.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Enable',
+                          onPress: () => setTwoFAEnabled(true),
+                        },
+                      ],
+                    );
+                  } else {
+                    Alert.alert(
+                      'Disable 2-Step Verification',
+                      'This will make your account less secure. Are you sure?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Disable',
+                          style: 'destructive',
+                          onPress: () => setTwoFAEnabled(false),
+                        },
+                      ],
+                    );
+                  }
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.background}
+              />
+            </SettingsRow>
+          </View>
+        </View>
+
+        {/* ---- 7. Wearables & Integrations ---- */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Wearables & Integrations</Text>
+          <View style={styles.card}>
+            <View style={{ gap: spacing.sm }}>
+              {[
+                { icon: '⌚', label: 'Apple Watch / Wear OS', sub: 'Sync workouts & heart rate' },
+                { icon: '❤️', label: 'Apple Health / Google Fit', sub: 'Import steps, sleep & calories' },
+                { icon: '🏃', label: 'Strava', sub: 'Connect running & cycling activity' },
+                { icon: '📿', label: 'Fitbit / Garmin / Whoop', sub: 'Sync fitness bands & rings' },
+                { icon: '🎵', label: 'Pilates & Yoga Apps', sub: 'Import mindfulness minutes' },
+              ].map((item, idx, arr) => (
+                <TouchableOpacity
+                  key={item.label}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    Alert.alert(
+                      item.label,
+                      'Integration coming soon. Connect your ' + item.label + ' to automatically sync your activity data.',
+                      [{ text: 'OK' }],
+                    )
+                  }
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: spacing.sm,
+                    borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
+                    borderBottomColor: colors.border,
+                    gap: spacing.md,
+                  }}
+                >
+                  <Text style={{ fontSize: 24 }}>{item.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                      {item.label}
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                      {item.sub}
+                    </Text>
+                  </View>
+                  <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* ---- 8. Achievements ---- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Achievements</Text>
           <View style={styles.achievementsGrid}>
@@ -1029,7 +1207,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ---- 7. Progress Photos ---- */}
+        {/* ---- 9. Progress Photos ---- */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Progress Photos</Text>
           <View style={styles.card}>
@@ -1051,7 +1229,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ---- 8. Logout ---- */}
+        {/* ---- 10. Logout ---- */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}

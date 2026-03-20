@@ -34,6 +34,12 @@ export enum ExerciseCategory {
   Plyometric = 'plyometric',
   Olympic = 'olympic',
   Powerlifting = 'powerlifting',
+  Pilates = 'pilates',
+  Yoga = 'yoga',
+  Mobility = 'mobility',
+  HIIT = 'hiit',
+  Martial = 'martial',
+  Dance = 'dance',
 }
 
 export interface Exercise {
