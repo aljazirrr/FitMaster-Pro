@@ -306,9 +306,11 @@ export default function PlansScreen() {
       color: colors.textSecondary,
     },
     filterRow: {
-      flexDirection: 'row' as const,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       paddingHorizontal: spacing.screenPadding,
-      paddingVertical: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
       gap: spacing.sm,
     },
     filterChip: {
@@ -358,12 +360,7 @@ export default function PlansScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={styles.filterRow}
-        >
+        <View style={styles.filterRow}>
           {FILTERS.map((filter) => (
             <TouchableOpacity
               key={filter.key}
@@ -384,7 +381,7 @@ export default function PlansScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* Plan list */}
         <ScrollView
