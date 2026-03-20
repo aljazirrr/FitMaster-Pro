@@ -313,7 +313,7 @@ export default function PlansScreen() {
     },
     filterChip: {
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingVertical: 10,
       borderRadius: spacing.borderRadius.full,
       borderWidth: 1,
       borderColor: colors.border,
@@ -323,8 +323,10 @@ export default function PlansScreen() {
       borderColor: colors.primary,
     },
     filterChipText: {
-      ...typography.smallBold,
+      fontSize: 14,
+      fontWeight: '600' as const,
       color: colors.textSecondary,
+      includeFontPadding: false,
     },
     filterChipTextActive: {
       color: colors.background,
