@@ -48,13 +48,13 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function goalLabel(goal: string): string {
+function goalLabel(goal: string, t: (key: string, fallback: string) => string): string {
   const map: Record<string, string> = {
-    lose_weight: 'Lose Weight',
-    build_muscle: 'Build Muscle',
-    maintain: 'Maintain',
-    improve_endurance: 'Endurance',
-    flexibility: 'Flexibility',
+    lose_weight: t('onboarding.goals.lose_weight', 'Lose Weight'),
+    build_muscle: t('onboarding.goals.build_muscle', 'Build Muscle'),
+    maintain: t('onboarding.goals.maintain', 'Maintain'),
+    improve_endurance: t('onboarding.goals.improve_endurance', 'Endurance'),
+    flexibility: t('onboarding.goals.flexibility', 'Flexibility'),
   };
   return map[goal] ?? goal.replace(/_/g, ' ');
 }
@@ -280,12 +280,13 @@ function WeightLogModal({
   typography,
   unitSystem,
 }: WeightLogModalProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
 
   const handleConfirm = () => {
     const num = parseFloat(value);
     if (isNaN(num) || num <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid weight value.');
+      Alert.alert(t('weightModal.invalidInput', 'Invalid Input'), t('weightModal.invalidMsg', 'Please enter a valid weight value.'));
       return;
     }
     onSubmit(num);
@@ -385,9 +386,9 @@ function WeightLogModal({
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>Log Weight</Text>
+          <Text style={styles.title}>{t('weightModal.title', 'Log Weight')}</Text>
           <Text style={styles.subtitle}>
-            Enter your current weight to track your progress.
+            {t('weightModal.subtitle', 'Enter your current weight to track your progress.')}
           </Text>
           <View style={styles.inputRow}>
             <TextInput
@@ -409,14 +410,14 @@ function WeightLogModal({
               onPress={onClose}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel', 'Cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.confirmButton}
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
-              <Text style={styles.confirmButtonText}>Save</Text>
+              <Text style={styles.confirmButtonText}>{t('common.save', 'Save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -457,10 +458,10 @@ export default function ProfileScreen() {
     : achievements.slice(0, 6);
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.logoutTitle', 'Log Out'), t('profile.logoutMsg', 'Are you sure you want to log out?'), [
+      { text: t('common.cancel', 'Cancel'), style: 'cancel' },
       {
-        text: 'Log Out',
+        text: t('profile.logoutTitle', 'Log Out'),
         style: 'destructive',
         onPress: async () => {
           await logoutAsync();
@@ -785,13 +786,13 @@ export default function ProfileScreen() {
               <Text style={styles.profileMetaValue}>
                 {user?.streakDays ?? 0}
               </Text>
-              <Text style={styles.profileMetaLabel}>Streak</Text>
+              <Text style={styles.profileMetaLabel}>{t('profile.streak', 'Streak')}</Text>
             </View>
             <View style={styles.profileMetaItem}>
               <Text style={styles.profileMetaValue}>
                 {formatDate(user?.joinDate ?? 'Jan 2025')}
               </Text>
-              <Text style={styles.profileMetaLabel}>Member since</Text>
+              <Text style={styles.profileMetaLabel}>{t('profile.memberSince', 'Member since')}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -799,7 +800,7 @@ export default function ProfileScreen() {
             onPress={() => router.push('/(tabs)/profile/edit' as any)}
             activeOpacity={0.8}
           >
-            <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+            <Text style={styles.editProfileButtonText}>{t('profile.editProfile', 'Edit Profile')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -807,21 +808,21 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{totalWorkouts}</Text>
-            <Text style={styles.statLabel}>Workouts</Text>
+            <Text style={styles.statLabel}>{t('profile.workouts', 'Workouts')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{personalRecords.length}</Text>
-            <Text style={styles.statLabel}>PRs</Text>
+            <Text style={styles.statLabel}>{t('profile.prs', 'PRs')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{weightEntries.length}</Text>
-            <Text style={styles.statLabel}>Weigh-ins</Text>
+            <Text style={styles.statLabel}>{t('profile.weighIns', 'Weigh-ins')}</Text>
           </View>
         </View>
 
         {/* ---- 3. Body Stats ---- */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Body Stats</Text>
+          <Text style={styles.sectionTitle}>{t('profile.bodyStats', 'Body Stats')}</Text>
           <View style={styles.card}>
             <View style={styles.bodyStatRow}>
               <View style={styles.bodyStatItem}>
@@ -829,26 +830,26 @@ export default function ProfileScreen() {
                   {currentWeight}
                   {units === 'imperial' ? ' lbs' : ' kg'}
                 </Text>
-                <Text style={styles.bodyStatLabel}>Weight</Text>
+                <Text style={styles.bodyStatLabel}>{t('profile.weight', 'Weight')}</Text>
               </View>
               <View style={styles.bodyStatItem}>
                 <Text style={styles.bodyStatValue}>
                   {heightCm > 0 ? `${heightCm} cm` : '—'}
                 </Text>
-                <Text style={styles.bodyStatLabel}>Height</Text>
+                <Text style={styles.bodyStatLabel}>{t('profile.height', 'Height')}</Text>
               </View>
               <View style={styles.bodyStatItem}>
                 <Text style={[styles.bodyStatValue, styles.bmiValue]}>
                   {bmi}
                 </Text>
-                <Text style={styles.bodyStatLabel}>BMI</Text>
+                <Text style={styles.bodyStatLabel}>{t('profile.bmi', 'BMI')}</Text>
               </View>
             </View>
 
             {/* Inline weight bar chart */}
             {weightEntries.length > 0 && (
               <>
-                <Text style={styles.chartTitle}>Last {Math.min(7, weightEntries.length)} entries</Text>
+                <Text style={styles.chartTitle}>{t('profile.lastEntries', 'Last {{count}} entries', { count: Math.min(7, weightEntries.length) })}</Text>
                 <WeightBarChart
                   entries={weightEntries}
                   colors={colors}
@@ -864,14 +865,14 @@ export default function ProfileScreen() {
                 onPress={() => setWeightModalVisible(true)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.logWeightButtonText}>Log Weight</Text>
+                <Text style={styles.logWeightButtonText}>{t('profile.logWeight', 'Log Weight')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.logWeightButton, { flex: 1, backgroundColor: `${colors.primary}22` }]}
                 onPress={() => router.push('/(tabs)/profile/analytics')}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.logWeightButtonText, { color: colors.primary }]}>✨ AI Analysis</Text>
+                <Text style={[styles.logWeightButtonText, { color: colors.primary }]}>{t('profile.aiAnalysis', '✨ AI Analysis')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -880,7 +881,7 @@ export default function ProfileScreen() {
         {/* ---- 4. Goals ---- */}
         {user?.goals && user.goals.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Goals</Text>
+            <Text style={styles.sectionTitle}>{t('profile.goals', 'Goals')}</Text>
             <View style={styles.goalsWrap}>
               {user.goals.map((goal) => (
                 <View
@@ -890,7 +891,7 @@ export default function ProfileScreen() {
                     { backgroundColor: goalColor(goal, colors) },
                   ]}
                 >
-                  <Text style={styles.goalTagText}>{goalLabel(goal)}</Text>
+                  <Text style={styles.goalTagText}>{goalLabel(goal, t)}</Text>
                 </View>
               ))}
             </View>
@@ -899,18 +900,18 @@ export default function ProfileScreen() {
 
         {/* ---- 5. Settings ---- */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+          <Text style={styles.sectionTitle}>{t('profile.settings', 'Settings')}</Text>
           <View style={styles.settingsCard}>
             <SettingsRow
-              label="Theme"
+              label={t('settings.theme', 'Theme')}
               colors={colors}
               spacing={spacing}
               typography={typography}
             >
               <SegmentedControl
                 options={[
-                  { label: 'Dark', value: 'dark' },
-                  { label: 'Light', value: 'light' },
+                  { label: t('settings.dark', 'Dark'), value: 'dark' },
+                  { label: t('settings.light', 'Light'), value: 'light' },
                 ]}
                 value={settingsTheme}
                 onChange={(v) => { if (v !== settingsTheme) toggleTheme(); }}
@@ -921,7 +922,7 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label="Language"
+              label={t('settings.language', 'Language')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -940,15 +941,15 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label="Units"
+              label={t('settings.units', 'Units')}
               colors={colors}
               spacing={spacing}
               typography={typography}
             >
               <SegmentedControl
                 options={[
-                  { label: 'Metric', value: 'metric' },
-                  { label: 'Imperial', value: 'imperial' },
+                  { label: t('settings.metric', 'Metric'), value: 'metric' },
+                  { label: t('settings.imperial', 'Imperial'), value: 'imperial' },
                 ]}
                 value={units}
                 onChange={(v) => setUnits(v as 'metric' | 'imperial')}
@@ -959,7 +960,7 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label="Notifications"
+              label={t('settings.notifications', 'Notifications')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -977,10 +978,10 @@ export default function ProfileScreen() {
 
         {/* ---- 6. Security ---- */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
+          <Text style={styles.sectionTitle}>{t('profile.security', 'Security')}</Text>
           <View style={styles.settingsCard}>
             <SettingsRow
-              label="Change Password"
+              label={t('profile.changePassword', 'Change Password')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -1011,13 +1012,13 @@ export default function ProfileScreen() {
                 }}
               >
                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
-                  Reset
+                  {t('profile.reset', 'Reset')}
                 </Text>
               </TouchableOpacity>
             </SettingsRow>
 
             <SettingsRow
-              label="Biometric Login"
+              label={t('profile.biometricLogin', 'Biometric Login')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -1047,7 +1048,7 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label="Face ID / Fingerprint"
+              label={t('profile.faceId', 'Face ID / Fingerprint')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -1061,7 +1062,7 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label="Two-Step Verification"
+              label={t('profile.twoStep', 'Two-Step Verification')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -1106,7 +1107,7 @@ export default function ProfileScreen() {
 
         {/* ---- 7. Wearables & Integrations ---- */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Wearables & Integrations</Text>
+          <Text style={styles.sectionTitle}>{t('profile.wearables', 'Wearables & Integrations')}</Text>
           <View style={styles.card}>
             <View style={{ gap: spacing.sm }}>
               {[

@@ -23,11 +23,11 @@ import type { MealEntry } from '../../src/types/nutrition';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getTimeBasedGreeting(): string {
+function getTimeBasedGreetingKey(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'home.goodMorning';
+  if (hour < 17) return 'home.goodAfternoon';
+  return 'home.goodEvening';
 }
 
 function formatDuration(seconds: number): string {
@@ -464,6 +464,7 @@ interface CalorieRingProps {
 }
 
 function CalorieRing({ consumed, target, theme, styles }: CalorieRingProps) {
+  const { t } = useTranslation();
   const pct = target > 0 ? Math.min(consumed / target, 1) : 0;
   const deg = pct * 360;
   const rightDeg = Math.min(deg, 180);
@@ -543,7 +544,7 @@ function CalorieRing({ consumed, target, theme, styles }: CalorieRingProps) {
         <View style={{ alignItems: 'center' }}>
           <Text style={styles.calorieNumber}>{Math.round(consumed)}</Text>
           <Text style={styles.calorieUnit}>kcal</Text>
-          <Text style={styles.calorieTarget}>of {target}</Text>
+          <Text style={styles.calorieTarget}>{t('home.of', 'of')} {target}</Text>
         </View>
       </View>
     </View>
@@ -556,15 +557,16 @@ function CalorieRing({ consumed, target, theme, styles }: CalorieRingProps) {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const MEAL_LABELS: Array<{
+const MEAL_LABEL_KEYS: Array<{
   key: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
   emoji: string;
-  label: string;
+  tKey: string;
+  fallback: string;
 }> = [
-  { key: 'breakfast', emoji: '🌅', label: 'Breakfast' },
-  { key: 'lunch', emoji: '☀️', label: 'Lunch' },
-  { key: 'dinner', emoji: '🌙', label: 'Dinner' },
-  { key: 'snacks', emoji: '🍎', label: 'Snacks' },
+  { key: 'breakfast', emoji: '🌅', tKey: 'nutrition.breakfast', fallback: 'Breakfast' },
+  { key: 'lunch', emoji: '☀️', tKey: 'nutrition.lunch', fallback: 'Lunch' },
+  { key: 'dinner', emoji: '🌙', tKey: 'nutrition.dinner', fallback: 'Dinner' },
+  { key: 'snacks', emoji: '🍎', tKey: 'nutrition.snacks', fallback: 'Snacks' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -626,7 +628,7 @@ export default function HomeScreen() {
     return (d + 6) % 7;
   }, []);
 
-  const greeting = getTimeBasedGreeting();
+  const greeting = t(getTimeBasedGreetingKey(), 'Good morning');
   const userName = user?.name ?? t('common.athlete', 'Athlete');
   const streakDays = user?.streakDays ?? 0;
   const weight = user?.measurements?.weight;
@@ -656,7 +658,7 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 20 }}>🔥</Text>
             <View>
               <Text style={styles.streakText}>{streakDays}</Text>
-              <Text style={styles.streakLabel}>day streak</Text>
+              <Text style={styles.streakLabel}>{t('home.dayStreak', 'day streak')}</Text>
             </View>
           </View>
         </View>
@@ -666,20 +668,20 @@ export default function HomeScreen() {
           <View style={styles.statCard}>
             <Text style={{ fontSize: 22 }}>🏋️</Text>
             <Text style={styles.statNumber}>{totalWorkouts}</Text>
-            <Text style={styles.statLabel}>{'Total\nWorkouts'}</Text>
+            <Text style={styles.statLabel}>{t('home.totalWorkouts', 'Total\nWorkouts')}</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={{ fontSize: 22 }}>📅</Text>
             <Text style={styles.statNumber}>{weeklyWorkouts}</Text>
-            <Text style={styles.statLabel}>{'This\nWeek'}</Text>
+            <Text style={styles.statLabel}>{t('home.thisWeek', 'This\nWeek')}</Text>
           </View>
 
           {weight != null && (
             <View style={styles.statCard}>
               <Text style={{ fontSize: 22 }}>⚖️</Text>
               <Text style={styles.statNumber}>{weight}</Text>
-              <Text style={styles.statLabel}>{'Weight\n(kg)'}</Text>
+              <Text style={styles.statLabel}>{t('home.weightKg', 'Weight\n(kg)')}</Text>
             </View>
           )}
         </View>
@@ -739,7 +741,7 @@ export default function HomeScreen() {
               />
             </View>
             <Text style={styles.waterValue}>
-              {dailyNutrition.water.current}/{dailyNutrition.water.target} glasses
+              {dailyNutrition.water.current}/{dailyNutrition.water.target} {t('home.glasses', 'glasses')}
             </Text>
           </View>
         </View>
@@ -757,7 +759,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/track')}
           >
             <Text style={styles.quickActionEmoji}>💪</Text>
-            <Text style={styles.quickActionLabel}>{'Start\nWorkout'}</Text>
+            <Text style={styles.quickActionLabel}>{t('home.startWorkout', 'Start\nWorkout')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -766,7 +768,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/nutrition')}
           >
             <Text style={styles.quickActionEmoji}>🥗</Text>
-            <Text style={styles.quickActionLabel}>{'Log\nMeal'}</Text>
+            <Text style={styles.quickActionLabel}>{t('home.logMeal', 'Log\nMeal')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -775,7 +777,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/profile')}
           >
             <Text style={styles.quickActionEmoji}>⚖️</Text>
-            <Text style={styles.quickActionLabel}>{'Log\nWeight'}</Text>
+            <Text style={styles.quickActionLabel}>{t('home.logWeight', 'Log\nWeight')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -784,7 +786,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/profile')}
           >
             <Text style={styles.quickActionEmoji}>💧</Text>
-            <Text style={styles.quickActionLabel}>{'Log\nWater'}</Text>
+            <Text style={styles.quickActionLabel}>{t('home.logWater', 'Log\nWater')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -877,7 +879,7 @@ export default function HomeScreen() {
         </Text>
         <View style={styles.card}>
           <View style={styles.mealsGrid}>
-            {MEAL_LABELS.map(({ key, emoji, label }) => {
+            {MEAL_LABEL_KEYS.map(({ key, emoji, tKey, fallback }) => {
               const hasEntries = dailyNutrition.meals[key].length > 0;
               const count = dailyNutrition.meals[key].length;
               return (
@@ -897,7 +899,7 @@ export default function HomeScreen() {
                       hasEntries ? styles.mealChipTextLogged : styles.mealChipTextEmpty,
                     ]}
                   >
-                    {label}
+                    {t(tKey, fallback)}
                     {hasEntries ? ` (${count})` : ''}
                   </Text>
                 </TouchableOpacity>
