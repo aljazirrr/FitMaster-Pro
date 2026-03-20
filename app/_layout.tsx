@@ -4,12 +4,24 @@ import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from '../src/theme';
 import { useNotifications } from '../src/hooks/useNotifications';
 import useSettingsStore from '../src/stores/useSettingsStore';
-import '../src/i18n';
+import i18n from '../src/i18n';
 
 function RootLayoutInner() {
-  const { theme } = useTheme();
+  const { theme, setDarkMode } = useTheme();
   const { enable } = useNotifications();
-  const { notifications } = useSettingsStore();
+  const { notifications, theme: settingsTheme, language } = useSettingsStore();
+
+  // Sync theme store → ThemeProvider
+  useEffect(() => {
+    setDarkMode(settingsTheme === 'dark');
+  }, [settingsTheme]);
+
+  // Sync language store → i18n
+  useEffect(() => {
+    if (i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [language]);
 
   // On first mount, re-schedule reminders if the user had them enabled
   useEffect(() => {
