@@ -308,8 +308,10 @@ export default function PlansScreen() {
     filterRow: {
       flexDirection: 'row' as const,
       paddingHorizontal: spacing.screenPadding,
+      paddingTop: spacing.sm,
       paddingBottom: spacing.md,
       gap: spacing.sm,
+      alignItems: 'center',
     },
     filterChip: {
       paddingHorizontal: spacing.md,
