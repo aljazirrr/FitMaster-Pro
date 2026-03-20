@@ -7,13 +7,22 @@
  *  - Canceling individual or all scheduled notifications
  *  - Registering the push token with the backend
  */
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { NotificationTriggerInput } from 'expo-notifications';
 
+// expo-notifications push token auto-registration throws in Expo Go on Android (SDK 53+).
+// Use require() with try-catch so the module loads gracefully in all environments.
+const Notifications = (() => {
+  try {
+    return require('expo-notifications') as typeof import('expo-notifications');
+  } catch {
+    return null;
+  }
+})();
+
 // ─── Default notification behaviour ──────────────────────────────────────────
 
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
@@ -66,6 +75,7 @@ export interface WaterReminderConfig {
  * Returns `true` if granted, `false` otherwise.
  */
 export async function requestPermissions(): Promise<boolean> {
+  if (!Notifications) return false;
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('fitmaster', {
       name: 'FitMaster Pro',
@@ -86,6 +96,7 @@ export async function requestPermissions(): Promise<boolean> {
  * Check if notification permissions are currently granted without prompting.
  */
 export async function hasPermissions(): Promise<boolean> {
+  if (!Notifications) return false;
   const { status } = await Notifications.getPermissionsAsync();
   return status === 'granted';
 }
@@ -99,6 +110,7 @@ export async function hasPermissions(): Promise<boolean> {
 export async function scheduleWorkoutReminders(
   config: WorkoutReminderConfig,
 ): Promise<string[]> {
+  if (!Notifications) return [];
   // Cancel existing workout reminders
   await cancelWorkoutReminders();
 
@@ -129,6 +141,7 @@ export async function scheduleWorkoutReminders(
 }
 
 export async function cancelWorkoutReminders(): Promise<void> {
+  if (!Notifications) return;
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   const workoutIds = scheduled
     .filter((n) => n.identifier.startsWith(NOTIFICATION_IDS.WORKOUT_REMINDER))
@@ -143,6 +156,7 @@ export async function cancelWorkoutReminders(): Promise<void> {
  * Schedule daily meal reminders for breakfast, lunch, and dinner.
  */
 export async function scheduleMealReminders(config: MealReminderConfig): Promise<void> {
+  if (!Notifications) return;
   await cancelMealReminders();
 
   const meals: Array<{
@@ -191,6 +205,7 @@ export async function scheduleMealReminders(config: MealReminderConfig): Promise
 }
 
 export async function cancelMealReminders(): Promise<void> {
+  if (!Notifications) return;
   await Promise.all([
     Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.MEAL_BREAKFAST),
     Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.MEAL_LUNCH),
@@ -205,6 +220,7 @@ export async function cancelMealReminders(): Promise<void> {
  * Only fires between 08:00 and 22:00 by using a TimeInterval trigger.
  */
 export async function scheduleWaterReminder(config: WaterReminderConfig): Promise<void> {
+  if (!Notifications) return;
   await cancelWaterReminder();
 
   await Notifications.scheduleNotificationAsync({
@@ -224,6 +240,7 @@ export async function scheduleWaterReminder(config: WaterReminderConfig): Promis
 }
 
 export async function cancelWaterReminder(): Promise<void> {
+  if (!Notifications) return;
   await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.WATER_REMINDER);
 }
 
@@ -234,6 +251,7 @@ export async function cancelWaterReminder(): Promise<void> {
  * logged a workout or meal today.
  */
 export async function scheduleStreakReminder(): Promise<void> {
+  if (!Notifications) return;
   await cancelStreakReminder();
 
   await Notifications.scheduleNotificationAsync({
@@ -253,12 +271,14 @@ export async function scheduleStreakReminder(): Promise<void> {
 }
 
 export async function cancelStreakReminder(): Promise<void> {
+  if (!Notifications) return;
   await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_IDS.STREAK_REMINDER);
 }
 
 // ─── Cancel all ───────────────────────────────────────────────────────────────
 
 export async function cancelAllNotifications(): Promise<void> {
+  if (!Notifications) return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
 

@@ -8,9 +8,18 @@
  *  4. Provides convenience helpers for the UI (enable, disable, toggle)
  */
 import { useEffect, useRef, useCallback } from 'react';
-import * as Notifications from 'expo-notifications';
 import type { Subscription } from 'expo-notifications';
 import { router } from 'expo-router';
+
+// expo-notifications push token auto-registration throws in Expo Go on Android (SDK 53+).
+// Use require() with try-catch so the module loads gracefully in all environments.
+const Notifications = (() => {
+  try {
+    return require('expo-notifications') as typeof import('expo-notifications');
+  } catch {
+    return null;
+  }
+})();
 import useSettingsStore from '../stores/useSettingsStore';
 import { getPushToken } from '../services/notificationService';
 
@@ -35,10 +44,11 @@ export function useNotifications(): UseNotificationsReturn {
   const responseSub = useRef<Subscription | null>(null);
 
   useEffect(() => {
+    if (!Notifications) return;
+
     // Handle notification received while app is in foreground
     receivedSub.current = Notifications.addNotificationReceivedListener((notification) => {
       const type = notification.request.content.data?.type as string | undefined;
-      // Could trigger in-app toast here based on type
       console.log('[Notification received]', type);
     });
 
