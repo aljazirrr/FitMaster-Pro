@@ -138,7 +138,7 @@ export async function generateAIWorkoutPlan(
   const stream = client.messages.stream({
     model: 'claude-opus-4-6',
     max_tokens: 8192,
-    thinking: { type: 'adaptive' },
+    thinking: { type: 'enabled', budget_tokens: 5000 },
     messages: [{ role: 'user', content: prompt }],
   });
 
