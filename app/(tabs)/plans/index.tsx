@@ -308,10 +308,8 @@ export default function PlansScreen() {
     filterRow: {
       flexDirection: 'row' as const,
       paddingHorizontal: spacing.screenPadding,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.md,
+      paddingVertical: spacing.sm,
       gap: spacing.sm,
-      alignItems: 'center',
     },
     filterChip: {
       paddingHorizontal: spacing.md,
@@ -361,6 +359,7 @@ export default function PlansScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }}
           contentContainerStyle={styles.filterRow}
         >
           {FILTERS.map((filter) => (
