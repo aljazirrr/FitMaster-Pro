@@ -17,9 +17,11 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
+import useSettingsStore from '../../../src/stores/useSettingsStore';
 import { getFoodById, searchFoods } from '../../../src/data/foods';
 import type { MealType } from '../../../src/types/nutrition';
 import type { FoodItem } from '../../../src/types/nutrition';
+import { estimateFoodMacros } from '../../../src/services/aiFoodService';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -121,11 +123,21 @@ interface FoodSearchModalProps {
 function FoodSearchModal({ visible, onClose, onAdd }: FoodSearchModalProps) {
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { language } = useSettingsStore();
+  const { addCustomFood } = useNutritionStore();
+  const isRo = language === 'ro';
   const styles = useFoodModalStyles(theme);
 
+  const [mode, setMode] = useState<'search' | 'custom'>('search');
   const [query, setQuery] = useState('');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [servingsText, setServingsText] = useState('1');
+
+  // Custom food AI state
+  const [customFoodName, setCustomFoodName] = useState('');
+  const [customGrams, setCustomGrams] = useState('100');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<FoodItem | null>(null);
 
   const results = useMemo(() => {
     if (query.trim().length === 0) return [];
@@ -154,8 +166,38 @@ function FoodSearchModal({ visible, onClose, onAdd }: FoodSearchModalProps) {
     setQuery('');
     setSelectedFood(null);
     setServingsText('1');
+    setMode('search');
+    setCustomFoodName('');
+    setCustomGrams('100');
+    setAiResult(null);
     onClose();
   }, [onClose]);
+
+  const handleAICalculate = useCallback(async () => {
+    if (!customFoodName.trim()) return;
+    const grams = parseFloat(customGrams);
+    if (isNaN(grams) || grams <= 0) return;
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const result = await estimateFoodMacros(customFoodName.trim(), grams, language as 'en' | 'ro');
+      setAiResult(result);
+    } catch {
+      Alert.alert(
+        isRo ? 'Eroare AI' : 'AI Error',
+        isRo ? 'Nu s-au putut calcula valorile nutritive.' : 'Could not calculate nutritional values.',
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }, [customFoodName, customGrams, language, isRo]);
+
+  const handleAddAIFood = useCallback(() => {
+    if (!aiResult) return;
+    addCustomFood(aiResult);
+    onAdd(aiResult.id, 1);
+    handleClose();
+  }, [aiResult, addCustomFood, onAdd, handleClose]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
@@ -171,81 +213,225 @@ function FoodSearchModal({ visible, onClose, onAdd }: FoodSearchModalProps) {
           </TouchableOpacity>
         </View>
 
-        {/* Search Input */}
-        <View style={styles.searchInputContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('nutrition.searchPlaceholder')}
-            placeholderTextColor={theme.colors.textTertiary}
-            value={query}
-            onChangeText={setQuery}
-            autoFocus
-          />
+        {/* Tab Toggle */}
+        <View style={{
+          flexDirection: 'row',
+          marginHorizontal: theme.spacing.screenPadding,
+          marginBottom: theme.spacing.sm,
+          borderRadius: theme.spacing.borderRadius.lg,
+          backgroundColor: theme.colors.surface,
+          padding: 3,
+        }}>
+          {(['search', 'custom'] as const).map((m) => (
+            <TouchableOpacity
+              key={m}
+              onPress={() => setMode(m)}
+              activeOpacity={0.7}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                alignItems: 'center',
+                borderRadius: theme.spacing.borderRadius.md,
+                backgroundColor: mode === m ? theme.colors.primary : 'transparent',
+              }}
+            >
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: mode === m ? '#fff' : theme.colors.textSecondary,
+              }}>
+                {m === 'search'
+                  ? (isRo ? '🔍 Caută' : '🔍 Search')
+                  : (isRo ? '✨ AI Custom' : '✨ AI Custom')}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Selected Food & Servings */}
-        {selectedFood && (
-          <View style={styles.selectedFoodCard}>
-            <Text style={styles.selectedFoodName}>{selectedFood.name}</Text>
-            {selectedFood.brand && (
-              <Text style={styles.selectedFoodBrand}>{selectedFood.brand}</Text>
-            )}
-            <Text style={styles.selectedFoodInfo}>
-              {Math.round(selectedFood.calories * parseFloat(servingsText || '1'))} kcal
-              {'  ·  '}P: {Math.round(selectedFood.protein * parseFloat(servingsText || '1'))}g
-              {'  ·  '}C: {Math.round(selectedFood.carbs * parseFloat(servingsText || '1'))}g
-              {'  ·  '}F: {Math.round(selectedFood.fat * parseFloat(servingsText || '1'))}g
-            </Text>
-            <View style={styles.servingRow}>
-              <Text style={styles.servingLabel}>{t('nutrition.servings')}:</Text>
+        {mode === 'search' ? (
+          <>
+            {/* Search Input */}
+            <View style={styles.searchInputContainer}>
               <TextInput
-                style={styles.servingInput}
-                value={servingsText}
-                onChangeText={setServingsText}
+                style={styles.searchInput}
+                placeholder={t('nutrition.searchPlaceholder')}
+                placeholderTextColor={theme.colors.textTertiary}
+                value={query}
+                onChangeText={setQuery}
+                autoFocus
+              />
+            </View>
+
+            {/* Selected Food & Servings */}
+            {selectedFood && (
+              <View style={styles.selectedFoodCard}>
+                <Text style={styles.selectedFoodName}>
+                  {isRo ? selectedFood.nameRo : selectedFood.name}
+                </Text>
+                {selectedFood.brand && (
+                  <Text style={styles.selectedFoodBrand}>{selectedFood.brand}</Text>
+                )}
+                <Text style={styles.selectedFoodInfo}>
+                  {Math.round(selectedFood.calories * parseFloat(servingsText || '1'))} kcal
+                  {'  ·  '}P: {Math.round(selectedFood.protein * parseFloat(servingsText || '1'))}g
+                  {'  ·  '}C: {Math.round(selectedFood.carbs * parseFloat(servingsText || '1'))}g
+                  {'  ·  '}F: {Math.round(selectedFood.fat * parseFloat(servingsText || '1'))}g
+                </Text>
+                <View style={styles.servingRow}>
+                  <Text style={styles.servingLabel}>{t('nutrition.servings')}:</Text>
+                  <TextInput
+                    style={styles.servingInput}
+                    value={servingsText}
+                    onChangeText={setServingsText}
+                    keyboardType="decimal-pad"
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.servingUnit}>
+                    × {selectedFood.serving.size} {selectedFood.serving.unit}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
+                  <Text style={styles.addButtonText}>{t('nutrition.addFood')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <FlatList
+              data={results}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.resultsList}
+              ListEmptyComponent={
+                query.trim().length > 0 ? (
+                  <Text style={styles.emptyText}>{t('nutrition.noFoodsFound')}</Text>
+                ) : null
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.foodResultItem,
+                    selectedFood?.id === item.id && styles.foodResultItemSelected,
+                  ]}
+                  onPress={() => handleSelectFood(item)}
+                >
+                  <View style={styles.foodResultInfo}>
+                    <Text style={styles.foodResultName}>
+                      {isRo ? item.nameRo : item.name}
+                    </Text>
+                    {item.brand && (
+                      <Text style={styles.foodResultBrand}>{item.brand}</Text>
+                    )}
+                    <Text style={styles.foodResultMeta}>
+                      {item.serving.size} {item.serving.unit} · {item.calories} kcal
+                    </Text>
+                  </View>
+                  <Text style={styles.foodResultCalories}>{item.calories}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </>
+        ) : (
+          /* ── AI Custom Food ── */
+          <ScrollView
+            contentContainerStyle={{ padding: theme.spacing.screenPadding, gap: theme.spacing.md }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, lineHeight: 18 }}>
+              {isRo
+                ? 'Introdu numele alimentului și gramajul. Claude AI va estima valorile nutritive.'
+                : 'Enter the food name and weight. Claude AI will estimate the nutritional values.'}
+            </Text>
+
+            <View>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
+                {isRo ? 'Denumire aliment' : 'Food name'}
+              </Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={isRo ? 'ex: piept de pui grătar' : 'e.g. grilled chicken breast'}
+                placeholderTextColor={theme.colors.textTertiary}
+                value={customFoodName}
+                onChangeText={setCustomFoodName}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
+                {isRo ? 'Gramaj (g)' : 'Weight (g)'}
+              </Text>
+              <TextInput
+                style={[styles.searchInput, { width: 120 }]}
+                placeholder="100"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={customGrams}
+                onChangeText={setCustomGrams}
                 keyboardType="decimal-pad"
                 selectTextOnFocus
               />
-              <Text style={styles.servingUnit}>
-                × {selectedFood.serving.size} {selectedFood.serving.unit}
-              </Text>
             </View>
-            <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-              <Text style={styles.addButtonText}>{t('nutrition.addFood')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
-        {/* Results List */}
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.resultsList}
-          ListEmptyComponent={
-            query.trim().length > 0 ? (
-              <Text style={styles.emptyText}>{t('nutrition.noFoodsFound')}</Text>
-            ) : null
-          }
-          renderItem={({ item }) => (
             <TouchableOpacity
-              style={[
-                styles.foodResultItem,
-                selectedFood?.id === item.id && styles.foodResultItemSelected,
-              ]}
-              onPress={() => handleSelectFood(item)}
+              style={[styles.addButton, { opacity: aiLoading || !customFoodName.trim() ? 0.5 : 1 }]}
+              onPress={handleAICalculate}
+              disabled={aiLoading || !customFoodName.trim()}
+              activeOpacity={0.8}
             >
-              <View style={styles.foodResultInfo}>
-                <Text style={styles.foodResultName}>{item.name}</Text>
-                {item.brand && (
-                  <Text style={styles.foodResultBrand}>{item.brand}</Text>
-                )}
-                <Text style={styles.foodResultMeta}>
-                  {item.serving.size} {item.serving.unit} · {item.calories} kcal
-                </Text>
-              </View>
-              <Text style={styles.foodResultCalories}>{item.calories}</Text>
+              <Text style={styles.addButtonText}>
+                {aiLoading
+                  ? (isRo ? 'Se calculează...' : 'Calculating...')
+                  : (isRo ? '✨ Calculează cu AI' : '✨ Calculate with AI')}
+              </Text>
             </TouchableOpacity>
-          )}
-        />
+
+            {/* AI Result Preview */}
+            {aiResult && (
+              <View style={[styles.selectedFoodCard, { marginHorizontal: 0 }]}>
+                <Text style={styles.selectedFoodName}>
+                  {isRo ? aiResult.nameRo : aiResult.name}
+                </Text>
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 12, marginBottom: 8 }}>
+                  {isRo ? 'Estimat de Claude AI pentru' : 'Claude AI estimate for'} {customGrams}g
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
+                  {[
+                    { label: 'Kcal', value: aiResult.calories, color: theme.colors.calories ?? theme.colors.warning },
+                    { label: isRo ? 'Prot' : 'Prot', value: aiResult.protein, color: theme.colors.primary },
+                    { label: isRo ? 'Carb' : 'Carb', value: aiResult.carbs, color: theme.colors.secondary },
+                    { label: isRo ? 'Grăs' : 'Fat', value: aiResult.fat, color: theme.colors.accent },
+                  ].map((m) => (
+                    <View key={m.label} style={{
+                      flex: 1,
+                      backgroundColor: m.color + '20',
+                      borderRadius: theme.spacing.borderRadius.sm,
+                      padding: theme.spacing.sm,
+                      alignItems: 'center',
+                    }}>
+                      <Text style={{ color: m.color, fontWeight: '700', fontSize: 15 }}>
+                        {Math.round(m.value)}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                        {m.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {aiResult.fiber != null && (
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginBottom: theme.spacing.md }}>
+                    {isRo ? 'Fibre: ' : 'Fiber: '}{Math.round(aiResult.fiber)}g
+                  </Text>
+                )}
+
+                <TouchableOpacity style={styles.addButton} onPress={handleAddAIFood} activeOpacity={0.8}>
+                  <Text style={styles.addButtonText}>
+                    {isRo ? '+ Adaugă la masă' : '+ Add to meal'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -421,10 +607,12 @@ interface MealSectionProps {
 function MealSection({ title, mealType, date, onAddFood }: MealSectionProps) {
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { language } = useSettingsStore();
+  const isRo = language === 'ro';
   const styles = useMealSectionStyles(theme);
   const [expanded, setExpanded] = useState(true);
 
-  const { getDailyNutrition, removeMealEntry } = useNutritionStore();
+  const { getDailyNutrition, removeMealEntry, customFoods } = useNutritionStore();
   const daily = getDailyNutrition(date);
   const entries = daily.meals[mealType];
 
@@ -464,12 +652,12 @@ function MealSection({ title, mealType, date, onAddFood }: MealSectionProps) {
             <Text style={styles.emptyMealText}>{t('nutrition.noFoods')}</Text>
           ) : (
             entries.map((entry) => {
-              const food = getFoodById(entry.foodId);
+              const food = getFoodById(entry.foodId) ?? customFoods.find(f => f.id === entry.foodId);
               if (!food) return null;
               return (
                 <View key={entry.id} style={styles.entryRow}>
                   <View style={styles.entryInfo}>
-                    <Text style={styles.entryName}>{food.name}</Text>
+                    <Text style={styles.entryName}>{isRo ? food.nameRo : food.name}</Text>
                     <Text style={styles.entryMeta}>
                       {entry.servings} × {food.serving.size} {food.serving.unit}
                       {'  ·  '}

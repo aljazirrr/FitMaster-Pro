@@ -18,6 +18,7 @@ interface NutritionState {
   dailyLog: Record<string, DailyNutrition>;
   shoppingList: ShoppingItem[];
   foodSearchResults: FoodItem[];
+  customFoods: FoodItem[];
   isSyncing: boolean;
   // Barcode scanner state
   scannedFood: BarcodeLookupResult | null;
@@ -28,6 +29,7 @@ interface NutritionState {
 
 interface NutritionActions {
   // ── Local (sync) actions ──────────────────────────────────────────────────
+  addCustomFood: (food: FoodItem) => void;
   addMealEntry: (date: string, mealType: MealType, foodId: string, servings: number) => void;
   removeMealEntry: (date: string, mealType: MealType, entryId: string) => void;
   updateWater: (date: string, amount: number) => void;
@@ -78,11 +80,17 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
       shoppingList: [],
       foodSearchResults: [],
       isSyncing: false,
+      customFoods: [],
       scannedFood: null,
       isScanningBarcode: false,
       savedMealPlans: [],
 
       // ── Local actions ──────────────────────────────────────────────────────
+
+      addCustomFood: (food) =>
+        set((state) => ({
+          customFoods: [food, ...state.customFoods.filter((f) => f.id !== food.id)],
+        })),
 
       addMealEntry: (date, mealType, foodId, servings) =>
         set((state) => {
