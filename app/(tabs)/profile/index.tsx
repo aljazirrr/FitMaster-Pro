@@ -742,6 +742,18 @@ export default function ProfileScreen() {
       marginHorizontal: spacing.screenPadding,
       marginBottom: spacing.sectionGap,
     },
+    editProfileButton: {
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.sm,
+      borderRadius: spacing.borderRadius.full,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    editProfileButtonText: {
+      ...typography.smallBold,
+      color: colors.primary,
+    },
   });
 
   return (
@@ -780,6 +792,13 @@ export default function ProfileScreen() {
               <Text style={styles.profileMetaLabel}>Member since</Text>
             </View>
           </View>
+          <TouchableOpacity
+            style={styles.editProfileButton}
+            onPress={() => router.push('/(tabs)/profile/edit' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ---- 2. Stats row ---- */}
@@ -892,7 +911,7 @@ export default function ProfileScreen() {
                   { label: 'Light', value: 'light' },
                 ]}
                 value={settingsTheme}
-                onChange={(v) => toggleTheme()}
+                onChange={(v) => { if (v !== settingsTheme) toggleTheme(); }}
                 colors={colors}
                 spacing={spacing}
                 typography={typography}

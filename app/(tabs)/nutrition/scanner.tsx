@@ -203,6 +203,17 @@ export default function BarcodeScannerScreen() {
                 </Text>
               </View>
 
+              {/* AI estimate warning */}
+              {scannedFood.source === 'ai' && (
+                <View style={styles.aiWarning}>
+                  <Text style={styles.aiWarningText}>
+                    {language === 'ro'
+                      ? 'Produsul nu a fost gasit in baze de date. Valorile nutritionale sunt estimate de AI si pot fi inexacte.'
+                      : 'Product not found in databases. Nutritional values are AI-estimated and may be inaccurate.'}
+                  </Text>
+                </View>
+              )}
+
               {/* Food name */}
               <Text style={styles.foodName}>
                 {language === 'ro' ? scannedFood.foodItem.nameRo : scannedFood.foodItem.name}
@@ -535,6 +546,20 @@ function useStyles(theme: any) {
       alignItems: 'center',
     },
     addBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+    // AI warning
+    aiWarning: {
+      backgroundColor: '#FF980022',
+      borderWidth: 1,
+      borderColor: '#FF9800',
+      borderRadius: 10,
+      padding: 10,
+    },
+    aiWarningText: {
+      color: '#FF9800',
+      fontSize: 12,
+      lineHeight: 17,
+    },
 
     // Idle
     idleCard: {
