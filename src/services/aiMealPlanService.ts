@@ -272,19 +272,25 @@ Return ONLY valid JSON (no markdown, no extra text) with this exact structure:
   "prepTips": ["Prep chicken in bulk on Sunday", ...]
 }`;
 
-  const stream = client.messages.stream({
-    model: 'claude-opus-4-6',
-    max_tokens: 16000,
-    thinking: { type: 'adaptive' },
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000); // 90s timeout
 
-  let fullText = '';
-  stream.on('text', (delta: string) => {
-    fullText += delta;
-    onProgress?.(delta);
-  });
+  try {
+    const stream = client.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: prompt }],
+    }, { signal: controller.signal });
 
-  await stream.finalMessage();
-  return parseMealPlanJSON(fullText, params);
+    let fullText = '';
+    stream.on('text', (delta: string) => {
+      fullText += delta;
+      onProgress?.(delta);
+    });
+
+    await stream.finalMessage();
+    return parseMealPlanJSON(fullText, params);
+  } finally {
+    clearTimeout(timeout);
+  }
 }

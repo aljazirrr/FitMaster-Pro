@@ -78,8 +78,10 @@ export default function GenerateMealPlanScreen() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [activeTab, setActiveTab] = useState<'meals' | 'grocery' | 'tips'>('meals');
   const tokenRef = useRef(0);
+  const cancelledRef = useRef(false);
 
   const handleGenerate = useCallback(async () => {
+    cancelledRef.current = false;
     setPhase('generating');
     tokenRef.current = 0;
     setTokenCount(0);
@@ -99,18 +101,30 @@ export default function GenerateMealPlanScreen() {
           setTokenCount(tokenRef.current);
         },
       );
+      if (cancelledRef.current) return;
       setPlan(result);
       setPhase('preview');
-    } catch (err) {
+    } catch (err: any) {
+      if (cancelledRef.current) return;
       setPhase('form');
+      const isTimeout = err?.name === 'AbortError' || err?.message?.includes('abort');
       Alert.alert(
         isRo ? 'Eroare' : 'Error',
         isRo
-          ? 'Nu s-a putut genera planul. Verifică conexiunea și cheia API.'
-          : 'Could not generate plan. Check your connection and API key.',
+          ? isTimeout
+            ? 'Generarea a durat prea mult. Încearcă din nou.'
+            : 'Nu s-a putut genera planul. Verifică conexiunea și cheia API.'
+          : isTimeout
+            ? 'Generation timed out. Please try again.'
+            : 'Could not generate plan. Check your connection and API key.',
       );
     }
   }, [goal, dietType, calories, language, allergies, user]);
+
+  const handleCancel = useCallback(() => {
+    cancelledRef.current = true;
+    setPhase('form');
+  }, []);
 
   const handleSave = useCallback(() => {
     if (!plan) return;
@@ -237,9 +251,27 @@ export default function GenerateMealPlanScreen() {
         <Text style={styles.generatingSubtitle}>
           {isRo ? 'Claude analizează nevoile tale nutriționale' : 'Claude is analyzing your nutritional needs'}
         </Text>
-        <View style={styles.tokenBadge}>
-          <Text style={styles.tokenText}>{tokenCount.toLocaleString()} chars</Text>
-        </View>
+        {tokenCount > 0 && (
+          <View style={styles.tokenBadge}>
+            <Text style={styles.tokenText}>{tokenCount.toLocaleString()} chars</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          onPress={handleCancel}
+          activeOpacity={0.7}
+          style={{
+            marginTop: 32,
+            paddingHorizontal: 24,
+            paddingVertical: 10,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+          }}
+        >
+          <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+            {isRo ? 'Anulează' : 'Cancel'}
+          </Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
