@@ -112,11 +112,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       loginAsync: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          // Use Firebase Auth when configured, fall back to mock REST API
-          const user = firebaseAuthService.isConfigured()
-            ? await firebaseAuthService.login(email, password)
-            : (await authService.login({ email, password })).user;
-          set({ isAuthenticated: true, user, isLoading: false });
+          let user: UserProfile;
+          if (firebaseAuthService.isConfigured()) {
+            user = await firebaseAuthService.login(email, password);
+          } else {
+            // Demo mode: no backend configured — accept any credentials
+            user = { ...defaultUser, email, name: email.split('@')[0] };
+          }
+          set({ isAuthenticated: true, isOnboarded: true, user, isLoading: false });
         } catch (err) {
           set({ isLoading: false, error: (err as Error).message });
           throw err;

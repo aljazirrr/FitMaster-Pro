@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const loginAsync = useAuthStore((s) => s.loginAsync);
+  const authError = useAuthStore((s) => s.error);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,6 +72,12 @@ export default function LoginScreen() {
               placeholder="********"
               secureTextEntry
             />
+
+            {authError ? (
+              <Text style={{ color: theme.colors.error ?? '#ef4444', marginBottom: 8, textAlign: 'center' }}>
+                {authError}
+              </Text>
+            ) : null}
 
             <Button
               title={loading ? t('common.loading') : 'Login'}
