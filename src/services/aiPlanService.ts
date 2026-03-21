@@ -1,21 +1,11 @@
 /**
  * aiPlanService — AI-powered workout plan generation using Claude claude-opus-4-6.
- *
- * Note: In production the API key should live on your backend to avoid bundling
- * a secret in the app. For development / demo, set EXPO_PUBLIC_ANTHROPIC_API_KEY
- * in your .env file.
+ * AI calls are proxied through the FitMaster backend server.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import { streamAI } from './aiServerClient';
 import type { WorkoutPlan, WorkoutLevel } from '../types/workout';
 import type { FitnessGoal } from '../types/user';
 import { Equipment } from '../types/exercise';
-
-// ─── Client ───────────────────────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
-  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-}
 
 // ─── Request params ───────────────────────────────────────────────────────────
 
@@ -131,24 +121,8 @@ export async function generateAIWorkoutPlan(
   params: AIPlanParams,
   onProgress?: (chunk: string) => void,
 ): Promise<WorkoutPlan> {
-  const client = getClient();
   const prompt = buildPrompt(params);
-  let fullText = '';
-
-  const stream = client.messages.stream({
-    model: 'claude-opus-4-6',
-    max_tokens: 8192,
-    thinking: { type: 'enabled', budget_tokens: 5000 },
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  stream.on('text', (delta: string) => {
-    fullText += delta;
-    onProgress?.(delta);
-  });
-
-  await stream.finalMessage();
-
+  const fullText = await streamAI('/ai/workout-plan', { prompt }, onProgress, 120_000);
   return parsePlanJSON(fullText, params);
 }
 

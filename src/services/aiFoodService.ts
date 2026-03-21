@@ -3,14 +3,10 @@
  *
  * Given a food name and weight in grams, Claude estimates
  * calories, protein, carbs, fat, and fiber.
+ * AI calls are proxied through the FitMaster backend server.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import { callAI } from './aiServerClient';
 import type { FoodItem } from '../types/nutrition';
-
-const client = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-  dangerouslyAllowBrowser: true,
-});
 
 function generateId(): string {
   return 'custom-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
@@ -38,33 +34,19 @@ Return ONLY valid JSON, no markdown, no extra text:
 
 Use standard nutritional databases (USDA, etc.) as reference. Round to 1 decimal place.`;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const raw = (await callAI('/ai/food-macros', { prompt }, 30_000)).trim();
+  const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+  const data = JSON.parse(jsonStr);
 
-  try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      messages: [{ role: 'user', content: prompt }],
-    }, { signal: controller.signal });
-
-    const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
-    // Strip any accidental markdown fences
-    const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
-    const data = JSON.parse(jsonStr);
-
-    return {
-      id: generateId(),
-      name: data.name ?? foodName,
-      nameRo: data.nameRo ?? foodName,
-      serving: { size: grams, unit: 'g' },
-      calories: Number(data.calories) || 0,
-      protein: Number(data.protein) || 0,
-      carbs: Number(data.carbs) || 0,
-      fat: Number(data.fat) || 0,
-      fiber: data.fiber != null ? Number(data.fiber) : undefined,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  return {
+    id: generateId(),
+    name: data.name ?? foodName,
+    nameRo: data.nameRo ?? foodName,
+    serving: { size: grams, unit: 'g' },
+    calories: Number(data.calories) || 0,
+    protein: Number(data.protein) || 0,
+    carbs: Number(data.carbs) || 0,
+    fat: Number(data.fat) || 0,
+    fiber: data.fiber != null ? Number(data.fiber) : undefined,
+  };
 }

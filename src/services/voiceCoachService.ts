@@ -11,7 +11,7 @@
  *    Workout summary at the end, on-demand coaching insights.
  *    Context-aware, personalised. Called asynchronously.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import { callAI } from './aiServerClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,11 +102,7 @@ export function getWorkoutStartMessage(language: 'en' | 'ro' = 'en'): string {
   return pick(language === 'ro' ? MESSAGES.workoutStartRo : MESSAGES.workoutStart);
 }
 
-// ─── Tier 2: Claude API ───────────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
-  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+// ─── Tier 2: AI via backend server ───────────────────────────────────────────
 }
 
 function formatDuration(seconds: number): string {
@@ -140,16 +136,7 @@ Write a personalised 2-3 sentence congratulatory wrap-up in English. Be energeti
     : 'Amazing workout! Recovery starts now. Well done!';
 
   try {
-    const client = getClient();
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 256,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const block = response.content.find((b) => b.type === 'text');
-    if (!block || block.type !== 'text') return fallback;
-    return block.text.trim();
+    return (await callAI('/ai/voice-coach', { prompt, maxTokens: 256 })).trim() || fallback;
   } catch {
     return fallback;
   }
@@ -172,16 +159,7 @@ Give a quick 1-2 sentence coaching tip: technique, motivation, or adjustment. Be
 
   const fallback = "Stay tight, breathe out on the push. You've got this!";
   try {
-    const client = getClient();
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 128,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const block = response.content.find((b) => b.type === 'text');
-    if (!block || block.type !== 'text') return fallback;
-    return block.text.trim();
+    return (await callAI('/ai/voice-coach', { prompt, maxTokens: 128 })).trim() || fallback;
   } catch {
     return fallback;
   }

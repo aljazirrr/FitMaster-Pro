@@ -4,7 +4,7 @@
  * Combines local math (linear regression, statistics) with Claude claude-opus-4-6
  * to produce rich, personalised progress insights.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import { callAI } from './aiServerClient';
 import type { BodyMeasurements, FitnessGoal } from '../types/user';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -159,13 +159,6 @@ export function classifyTrend(
   return slope < 0 ? 'positive' : 'negative'; // default: losing weight is positive
 }
 
-// ─── Claude API helper ────────────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
-  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-}
-
 function formatEntries(entries: WeightEntry[]): string {
   return entries
     .slice(-10)
@@ -260,24 +253,12 @@ Reply ONLY with valid JSON (no extra text) matching this exact structure:
   let recommendations: string[] = [];
 
   try {
-    const client = getClient();
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 512,
-      thinking: { type: 'adaptive' },
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const textBlock = response.content.find((b) => b.type === 'text');
-    if (textBlock && textBlock.type === 'text') {
-      let raw = textBlock.text.trim();
-      // Strip markdown fences
-      const fenceMatch = raw.match(/```(?:json)?\n?([\s\S]*?)```/);
-      if (fenceMatch) raw = fenceMatch[1].trim();
-      const parsed = JSON.parse(raw) as { summary?: string; recommendations?: string[] };
-      summary = parsed.summary ?? '';
-      recommendations = parsed.recommendations ?? [];
-    }
+    let raw = (await callAI('/ai/progress-insights', { prompt }, 60_000)).trim();
+    const fenceMatch = raw.match(/```(?:json)?\n?([\s\S]*?)```/);
+    if (fenceMatch) raw = fenceMatch[1].trim();
+    const parsed = JSON.parse(raw) as { summary?: string; recommendations?: string[] };
+    summary = parsed.summary ?? '';
+    recommendations = parsed.recommendations ?? [];
   } catch {
     // Use generic fallback
   }
