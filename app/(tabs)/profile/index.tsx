@@ -435,7 +435,7 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const { colors, spacing, typography } = theme;
 
-  const { user, logoutAsync } = useAuthStore();
+  const { user, logoutAsync, updateProfile } = useAuthStore();
   const { totalWorkouts, personalRecords } = useWorkoutStore();
   const { weightEntries, photos, addWeight } = useProgressStore();
   const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync } = useSettingsStore();
@@ -1244,7 +1244,13 @@ export default function ProfileScreen() {
       <WeightLogModal
         visible={weightModalVisible}
         onClose={() => setWeightModalVisible(false)}
-        onSubmit={addWeight}
+        onSubmit={(value) => {
+          addWeight(value);
+          // Keep user.measurements.weight in sync with the logged weight
+          updateProfile({
+            measurements: { ...(user?.measurements ?? {}), weight: value } as any,
+          });
+        }}
         colors={colors}
         spacing={spacing}
         typography={typography}

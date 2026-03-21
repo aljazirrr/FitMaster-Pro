@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTheme } from '../../../src/theme';
 import { useAuthStore } from '../../../src/stores/useAuthStore';
+import { useProgressStore } from '../../../src/stores/useProgressStore';
 import type { FitnessGoal, Gender, ActivityLevel, DietType } from '../../../src/types/user';
 
 const FITNESS_GOALS: { value: FitnessGoal; label: string }[] = [
@@ -49,6 +50,7 @@ export default function EditProfileScreen() {
   const { theme } = useTheme();
   const { colors, spacing, typography } = theme;
   const { user, updateProfile } = useAuthStore();
+  const addWeight = useProgressStore((s) => s.addWeight);
 
   const [name, setName] = useState(user?.name ?? '');
   const [weight, setWeight] = useState(String(user?.measurements?.weight ?? ''));
@@ -94,6 +96,10 @@ export default function EditProfileScreen() {
         gender,
       },
     });
+    // If weight changed, log it in the weight history so Body Stats stays in sync
+    if (w !== user?.measurements?.weight) {
+      addWeight(w);
+    }
     router.back();
   };
 
