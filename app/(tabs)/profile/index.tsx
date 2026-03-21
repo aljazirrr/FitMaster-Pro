@@ -438,12 +438,10 @@ export default function ProfileScreen() {
   const { user, logoutAsync, updateProfile } = useAuthStore();
   const { totalWorkouts, personalRecords } = useWorkoutStore();
   const { weightEntries, photos, addWeight } = useProgressStore();
-  const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync } = useSettingsStore();
+  const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync, biometricEnabled, setBiometricEnabled, twoFAEnabled, setTwoFAEnabled } = useSettingsStore();
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
 
   const currentWeight =
     weightEntries.length > 0
@@ -1018,7 +1016,7 @@ export default function ProfileScreen() {
             </SettingsRow>
 
             <SettingsRow
-              label={t('profile.biometricLogin', 'Biometric Login')}
+              label={t('profile.faceId', 'Face ID / Fingerprint')}
               colors={colors}
               spacing={spacing}
               typography={typography}
@@ -1042,20 +1040,6 @@ export default function ProfileScreen() {
                     setBiometricEnabled(false);
                   }
                 }}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.background}
-              />
-            </SettingsRow>
-
-            <SettingsRow
-              label={t('profile.faceId', 'Face ID / Fingerprint')}
-              colors={colors}
-              spacing={spacing}
-              typography={typography}
-            >
-              <Switch
-                value={biometricEnabled}
-                onValueChange={(val) => setBiometricEnabled(val)}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.background}
               />

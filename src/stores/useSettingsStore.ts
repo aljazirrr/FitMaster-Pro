@@ -53,6 +53,8 @@ interface SettingsState {
   notifications: boolean;
   notificationsPermissionGranted: boolean;
   schedule: NotificationSchedule;
+  biometricEnabled: boolean;
+  twoFAEnabled: boolean;
 }
 
 interface SettingsActions {
@@ -61,6 +63,8 @@ interface SettingsActions {
   setLanguage: (language: Language) => void;
   setUnits: (units: Units) => void;
   setSchedule: (schedule: Partial<NotificationSchedule>) => void;
+  setBiometricEnabled: (value: boolean) => void;
+  setTwoFAEnabled: (value: boolean) => void;
 
   // ── Async ───────────────────────────────────────────────────────────────────
   /** Request permissions and enable all reminders if granted. */
@@ -85,6 +89,8 @@ const useSettingsStore = create<SettingsState & SettingsActions>()(
       notifications: false,
       notificationsPermissionGranted: false,
       schedule: DEFAULT_SCHEDULE,
+      biometricEnabled: false,
+      twoFAEnabled: false,
 
       // ── Sync actions ────────────────────────────────────────────────────────
 
@@ -100,6 +106,10 @@ const useSettingsStore = create<SettingsState & SettingsActions>()(
 
       setSchedule: (partial) =>
         set((state) => ({ schedule: { ...state.schedule, ...partial } })),
+
+      setBiometricEnabled: (value) => set({ biometricEnabled: value }),
+
+      setTwoFAEnabled: (value) => set({ twoFAEnabled: value }),
 
       // ── Async actions ────────────────────────────────────────────────────────
 
