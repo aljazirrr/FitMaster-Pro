@@ -46,13 +46,13 @@ function getTodayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function calcEntriesNutrition(entries: MealEntry[]) {
+function calcEntriesNutrition(entries: MealEntry[], customFoods: import('../../../src/types/nutrition').FoodItem[] = []) {
   let calories = 0;
   let protein = 0;
   let carbs = 0;
   let fat = 0;
   for (const entry of entries) {
-    const food = getFoodById(entry.foodId);
+    const food = getFoodById(entry.foodId) ?? customFoods.find((f) => f.id === entry.foodId);
     if (!food) continue;
     calories += food.calories * entry.servings;
     protein += food.protein * entry.servings;
@@ -582,6 +582,9 @@ export default function HomeScreen() {
   const workoutHistory = useWorkoutStore((s) => s.workoutHistory);
   const totalWorkouts = useWorkoutStore((s) => s.totalWorkouts);
   const weeklyWorkouts = useWorkoutStore((s) => s.weeklyWorkouts);
+  // Subscribe to dailyLog directly so the component re-renders when food/water is added
+  const dailyLog = useNutritionStore((s) => s.dailyLog);
+  const customFoods = useNutritionStore((s) => s.customFoods);
   const getDailyNutrition = useNutritionStore((s) => s.getDailyNutrition);
 
   const [refreshing, setRefreshing] = React.useState(false);
@@ -599,9 +602,9 @@ export default function HomeScreen() {
 
   const dailyNutrition = useMemo(
     () => getDailyNutrition(todayStr),
-    // refreshKey intentionally included to force re-derive on pull-to-refresh
+    // dailyLog triggers re-render when food/water is added; refreshKey for pull-to-refresh
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getDailyNutrition, todayStr, refreshKey],
+    [dailyLog, todayStr, refreshKey],
   );
 
   const nutritionTotals = useMemo(() => {
@@ -611,8 +614,8 @@ export default function HomeScreen() {
       ...dailyNutrition.meals.dinner,
       ...dailyNutrition.meals.snacks,
     ];
-    return calcEntriesNutrition(allEntries);
-  }, [dailyNutrition]);
+    return calcEntriesNutrition(allEntries, customFoods);
+  }, [dailyNutrition, customFoods]);
 
   const weeklyBarData = useMemo(
     () => getWeeklyWorkoutCounts(workoutHistory),

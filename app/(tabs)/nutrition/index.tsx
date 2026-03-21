@@ -39,9 +39,10 @@ function formatDate(dateStr: string, t: (key: string) => string): string {
 }
 
 function offsetDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return toISODateString(d);
+  // Parse as UTC noon to avoid DST/timezone shifts in toISOString()
+  const d = new Date(dateStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -618,10 +619,10 @@ function MealSection({ title, mealType, date, onAddFood }: MealSectionProps) {
 
   const mealCalories = useMemo(() => {
     return entries.reduce((sum, entry) => {
-      const food = getFoodById(entry.foodId);
+      const food = getFoodById(entry.foodId) ?? customFoods.find((f) => f.id === entry.foodId);
       return sum + (food ? food.calories * entry.servings : 0);
     }, 0);
-  }, [entries]);
+  }, [entries, customFoods]);
 
   const handleDelete = useCallback(
     (entryId: string) => {
@@ -942,10 +943,10 @@ export default function NutritionScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('breakfast');
 
-  const { getDailyNutrition, addMealEntry } = useNutritionStore();
+  const { getDailyNutrition, addMealEntry, customFoods } = useNutritionStore();
   const daily = getDailyNutrition(date);
 
-  // Computed totals
+  // Computed totals (includes custom AI-added foods)
   const totals = useMemo(() => {
     const allEntries = [
       ...daily.meals.breakfast,
@@ -955,7 +956,7 @@ export default function NutritionScreen() {
     ];
     return allEntries.reduce(
       (acc, entry) => {
-        const food = getFoodById(entry.foodId);
+        const food = getFoodById(entry.foodId) ?? customFoods.find((f) => f.id === entry.foodId);
         if (!food) return acc;
         return {
           calories: acc.calories + food.calories * entry.servings,
@@ -966,7 +967,7 @@ export default function NutritionScreen() {
       },
       { calories: 0, protein: 0, carbs: 0, fat: 0 },
     );
-  }, [daily]);
+  }, [daily, customFoods]);
 
   const calorieProgress = daily.targetCalories > 0
     ? Math.min(totals.calories / daily.targetCalories, 1)
