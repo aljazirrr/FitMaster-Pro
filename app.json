@@ -55,13 +55,6 @@
         }
       ],
       [
-        "react-native-health",
-        {
-          "healthSharePermission": "FitMaster Pro reads your blood glucose data to display CGM readings and trends.",
-          "healthUpdatePermission": "FitMaster Pro does not write to Apple Health."
-        }
-      ],
-      [
         "react-native-health-connect",
         {
           "package": "com.fitmaster.pro"
