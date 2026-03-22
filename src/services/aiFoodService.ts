@@ -3,10 +3,15 @@
  *
  * Given a food name and weight in grams, Claude estimates
  * calories, protein, carbs, fat, and fiber.
- * AI calls are proxied through the FitMaster backend server.
+ * Calls the Anthropic API directly (same pattern as aiMealPlanService).
  */
-import { callAI } from './aiServerClient';
+import Anthropic from '@anthropic-ai/sdk';
 import type { FoodItem } from '../types/nutrition';
+
+const client = new Anthropic({
+  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
+  dangerouslyAllowBrowser: true,
+});
 
 function generateId(): string {
   return 'custom-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
@@ -34,7 +39,13 @@ Return ONLY valid JSON, no markdown, no extra text:
 
 Use standard nutritional databases (USDA, etc.) as reference. Round to 1 decimal place.`;
 
-  const raw = (await callAI('/ai/food-macros', { prompt }, 30_000)).trim();
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 256,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
   const data = JSON.parse(jsonStr);
 
