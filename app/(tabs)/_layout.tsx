@@ -10,6 +10,7 @@ function TabIcon({ name, focused, color }: { name: string; focused: boolean; col
     track: focused ? '💪' : '💪',
     plans: focused ? '📋' : '📋',
     nutrition: focused ? '🥗' : '🥗',
+    glucose: focused ? '🩸' : '🩸',
     community: focused ? '👥' : '👥',
     profile: focused ? '👤' : '👤',
   };
@@ -88,6 +89,15 @@ export default function TabLayout() {
           title: t('tabs.nutrition'),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="nutrition" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="glucose"
+        options={{
+          title: t('tabs.glucose'),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="glucose" focused={focused} color={color} />
           ),
         }}
       />

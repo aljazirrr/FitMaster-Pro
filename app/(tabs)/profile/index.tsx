@@ -19,6 +19,7 @@ import { useWorkoutStore } from '../../../src/stores/useWorkoutStore';
 import { useProgressStore } from '../../../src/stores/useProgressStore';
 import useSettingsStore from '../../../src/stores/useSettingsStore';
 import { achievements } from '../../../src/data/achievements';
+import { useHealthConnect } from '../../../src/hooks/useHealthConnect';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -439,6 +440,7 @@ export default function ProfileScreen() {
   const { totalWorkouts, personalRecords } = useWorkoutStore();
   const { weightEntries, photos, addWeight } = useProgressStore();
   const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync, biometricEnabled, setBiometricEnabled, twoFAEnabled, setTwoFAEnabled } = useSettingsStore();
+  const { isConnected: isGlucoseConnected, platformLabel: glucosePlatformLabel, connect: connectGlucose } = useHealthConnect();
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
@@ -1094,9 +1096,40 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>{t('profile.wearables', 'Wearables & Integrations')}</Text>
           <View style={styles.card}>
             <View style={{ gap: spacing.sm }}>
+              {/* ── CGM / Health integration (live) ── */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/glucose')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: spacing.sm,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                  gap: spacing.md,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>🩸</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                    {glucosePlatformLabel ?? 'Apple Health / Health Connect'}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {isGlucoseConnected
+                      ? t('profile.glucoseConnected', 'CGM data connected ✓')
+                      : t('profile.glucoseNotConnected', 'Tap to connect CGM glucose data')}
+                  </Text>
+                </View>
+                {isGlucoseConnected ? (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success ?? '#22C55E' }} />
+                ) : (
+                  <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* ── Other integrations (coming soon) ── */}
               {[
                 { icon: '⌚', label: 'Apple Watch / Wear OS', sub: 'Sync workouts & heart rate' },
-                { icon: '❤️', label: 'Apple Health / Google Fit', sub: 'Import steps, sleep & calories' },
                 { icon: '🏃', label: 'Strava', sub: 'Connect running & cycling activity' },
                 { icon: '📿', label: 'Fitbit / Garmin / Whoop', sub: 'Sync fitness bands & rings' },
                 { icon: '🎵', label: 'Pilates & Yoga Apps', sub: 'Import mindfulness minutes' },

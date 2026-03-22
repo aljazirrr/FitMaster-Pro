@@ -14,7 +14,15 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitmaster.pro"
+      "bundleIdentifier": "com.fitmaster.pro",
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
+      },
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "FitMaster Pro reads your blood glucose data from Apple Health to display CGM readings, trends, and time-in-range analysis.",
+        "NSHealthUpdateUsageDescription": "FitMaster Pro does not write data to Apple Health."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +31,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.fitmaster.pro"
+      "package": "com.fitmaster.pro",
+      "permissions": [
+        "android.permission.health.READ_BLOOD_GLUCOSE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -41,6 +52,19 @@
           "sounds": [],
           "androidMode": "default",
           "androidCollapsedTitle": "FitMaster Pro"
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "FitMaster Pro reads your blood glucose data to display CGM readings and trends.",
+          "healthUpdatePermission": "FitMaster Pro does not write to Apple Health."
+        }
+      ],
+      [
+        "react-native-health-connect",
+        {
+          "package": "com.fitmaster.pro"
         }
       ]
     ]
