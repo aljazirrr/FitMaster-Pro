@@ -103,7 +103,6 @@ export function getWorkoutStartMessage(language: 'en' | 'ro' = 'en'): string {
 }
 
 // ─── Tier 2: AI via backend server ───────────────────────────────────────────
-}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
