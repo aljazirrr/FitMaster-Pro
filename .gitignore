@@ -38,5 +38,5 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+# /android is tracked in git so EAS uses the pre-built folder with minSdkVersion 26
 .env
