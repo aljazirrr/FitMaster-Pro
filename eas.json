@@ -6,15 +6,24 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "26"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "26"
+      }
     },
     "production": {
       "distribution": "store",
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "26"
+      }
     }
   },
   "submit": {
