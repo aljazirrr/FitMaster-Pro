@@ -41,6 +41,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/withMinSdk26",
       [
         "expo-build-properties",
         {
