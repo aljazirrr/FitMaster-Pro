@@ -1,11 +1,15 @@
-const { withGradleProperties, withAppBuildGradle, withAndroidManifest } = require('expo/config-plugins');
+const { withGradleProperties, withAppBuildGradle, withAndroidManifest, withDangerousMod } = require('expo/config-plugins');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Forces Android minSdkVersion to 26 for Health Connect compatibility.
- * Uses three approaches for maximum reliability across EAS prebuild regeneration:
- * 1. Sets android.minSdkVersion in gradle.properties (read by expo-root-project)
- * 2. Directly patches android/app/build.gradle defaultConfig (handles any template pattern)
- * 3. Sets android:minSdkVersion="26" in AndroidManifest.xml (survives manifest merger)
+ * Uses four approaches for maximum reliability across EAS prebuild regeneration:
+ * 1. Sets android.minSdkVersion in gradle.properties
+ * 2. Directly patches android/app/build.gradle defaultConfig
+ * 3. Sets android:minSdkVersion="26" in AndroidManifest.xml
+ * 4. Patches settings.gradle to explicitly set minSdk="26" in the expoLibs version catalog
+ *    (this is the root source that ExpoRootProjectPlugin reads to set rootProject.ext.minSdkVersion)
  */
 module.exports = function withMinSdk26(config) {
   // 1. Set in gradle.properties so expo-root-project picks it up
@@ -62,6 +66,33 @@ module.exports = function withMinSdk26(config) {
 
     return mod;
   });
+
+  // 4. Patch settings.gradle to force minSdk="26" in the expoLibs version catalog.
+  //    ExpoRootProjectPlugin reads expoLibs.minSdk to set rootProject.ext.minSdkVersion.
+  //    This overrides the React Native default of "24" in libs.versions.toml.
+  config = withDangerousMod(config, [
+    'android',
+    (mod) => {
+      const settingsGradlePath = path.join(mod.modRequest.platformProjectRoot, 'settings.gradle');
+      if (fs.existsSync(settingsGradlePath)) {
+        let contents = fs.readFileSync(settingsGradlePath, 'utf8');
+
+        // Replace the no-arg useExpoVersionCatalog() with one that forces minSdk=26
+        contents = contents.replace(
+          /expoAutolinking\.useExpoVersionCatalog\(\)/g,
+          [
+            'expoAutolinking.useExpoVersionCatalog { catalog ->',
+            '  // Force minSdk to 26 for Health Connect (androidx.health.connect:connect-client)',
+            '  catalog.version("minSdk", "26")',
+            '}',
+          ].join('\n')
+        );
+
+        fs.writeFileSync(settingsGradlePath, contents);
+      }
+      return mod;
+    },
+  ]);
 
   return config;
 };

@@ -33,7 +33,10 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'FitMaster Pro'
 
-expoAutolinking.useExpoVersionCatalog()
+expoAutolinking.useExpoVersionCatalog { catalog ->
+  // Force minSdk to 26 for Health Connect (androidx.health.connect:connect-client) compatibility
+  catalog.version("minSdk", "26")
+}
 
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
