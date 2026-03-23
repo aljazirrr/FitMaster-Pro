@@ -58,13 +58,20 @@ function withSettingsGradleMinSdk(config) {
       }
 
       if (contents.includes('useExpoVersionCatalog')) {
-        // Inject inside the existing block
+        // Template may call it as useExpoVersionCatalog() with no block — replace with block form
         contents = contents.replace(
-          /(expoAutolinking\.useExpoVersionCatalog\s*\{[^}]*)(})/,
-          '$1  catalog.version("minSdk", "26")\n$2'
+          /expoAutolinking\.useExpoVersionCatalog\s*\(\s*\)/,
+          'expoAutolinking.useExpoVersionCatalog { catalog ->\n  catalog.version("minSdk", "26")\n}'
         );
+        // If it already has a block but minSdk isn't set, inject inside
+        if (!contents.includes('catalog.version("minSdk"')) {
+          contents = contents.replace(
+            /(expoAutolinking\.useExpoVersionCatalog\s*\{[^}]*)(})/,
+            '$1  catalog.version("minSdk", "26")\n$2'
+          );
+        }
       } else {
-        // Append a new block after useExpoModules()
+        // No useExpoVersionCatalog call at all — add after useExpoModules()
         contents = contents.replace(
           'expoAutolinking.useExpoModules()',
           'expoAutolinking.useExpoModules()\n\nexpoAutolinking.useExpoVersionCatalog { catalog ->\n  catalog.version("minSdk", "26")\n}'
