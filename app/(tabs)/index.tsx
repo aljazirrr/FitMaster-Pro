@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useTheme } from '../../src/theme';
 import { useAuthStore } from '../../src/stores/useAuthStore';
 import { useWorkoutStore } from '../../src/stores/useWorkoutStore';
 import { useNutritionStore } from '../../src/stores/useNutritionStore';
+import { useActivityStore, stepsToKm, stepsToKcal } from '../../src/stores/useActivityStore';
 import { getFoodById } from '../../src/data/foods';
 import type { Theme } from '../../src/theme';
 import type { WorkoutSession } from '../../src/types/workout';
@@ -388,6 +389,54 @@ function createStyles(theme: Theme) {
       textAlign: 'center',
       paddingVertical: spacing.md,
     },
+
+    // ── Steps card ───────────────────────────────────────────────────────────
+    stepsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    stepsNumber: {
+      ...typography.h1,
+      color: colors.text,
+      marginRight: 6,
+    },
+    stepsGoal: {
+      ...typography.body,
+      color: colors.textSecondary,
+      alignSelf: 'flex-end',
+      marginBottom: 4,
+    },
+    stepsMeta: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.sm,
+    },
+    stepsMetaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    stepsMetaText: {
+      ...typography.small,
+      color: colors.textSecondary,
+    },
+    stepsProgressTrack: {
+      height: 10,
+      backgroundColor: colors.border,
+      borderRadius: 5,
+      overflow: 'hidden',
+      marginBottom: spacing.xs,
+    },
+    stepsProgressFill: {
+      height: 10,
+      borderRadius: 5,
+    },
+    stepsPct: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textAlign: 'right',
+    },
   });
 }
 
@@ -552,6 +601,71 @@ function CalorieRing({ consumed, target, theme, styles }: CalorieRingProps) {
 }
 
 // ---------------------------------------------------------------------------
+// StepsCard
+// ---------------------------------------------------------------------------
+
+const STEPS_COLOR = '#6366F1'; // indigo
+
+interface StepsCardProps {
+  steps: number;
+  goal: number;
+  isSyncing: boolean;
+  styles: ReturnType<typeof createStyles>;
+  t: (key: string, fallback: string, opts?: Record<string, unknown>) => string;
+}
+
+function StepsCard({ steps, goal, isSyncing, styles, t }: StepsCardProps) {
+  const pct = goal > 0 ? Math.min(steps / goal, 1) : 0;
+  const km = stepsToKm(steps);
+  const kcal = stepsToKcal(steps);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.stepsRow}>
+        <Text style={[styles.stepsNumber, { color: STEPS_COLOR }]}>
+          {isSyncing ? '—' : steps.toLocaleString()}
+        </Text>
+        <Text style={styles.stepsGoal}>/ {goal.toLocaleString()} {t('home.steps', 'steps')}</Text>
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.stepsProgressTrack}>
+        <View
+          style={[
+            styles.stepsProgressFill,
+            {
+              width: `${Math.round(pct * 100)}%` as `${number}%`,
+              backgroundColor: pct >= 1 ? '#22C55E' : STEPS_COLOR,
+            },
+          ]}
+        />
+      </View>
+      <Text style={styles.stepsPct}>{Math.round(pct * 100)}%</Text>
+
+      {/* Distance + calories */}
+      <View style={styles.stepsMeta}>
+        <View style={styles.stepsMetaItem}>
+          <Text style={{ fontSize: 14 }}>📍</Text>
+          <Text style={styles.stepsMetaText}>{km} km</Text>
+        </View>
+        <View style={styles.stepsMetaItem}>
+          <Text style={{ fontSize: 14 }}>🔥</Text>
+          <Text style={styles.stepsMetaText}>{kcal} kcal</Text>
+        </View>
+        {pct >= 1 && (
+          <View style={styles.stepsMetaItem}>
+            <Text style={{ fontSize: 14 }}>🎉</Text>
+            <Text style={[styles.stepsMetaText, { color: '#22C55E', fontWeight: '600' }]}>
+              {t('home.goalReached', 'Goal reached!')}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -587,16 +701,28 @@ export default function HomeScreen() {
   const customFoods = useNutritionStore((s) => s.customFoods);
   const getDailyNutrition = useNutritionStore((s) => s.getDailyNutrition);
 
+  const stepsToday = useActivityStore((s) => s.stepsToday);
+  const stepsGoal = useActivityStore((s) => s.stepsGoal);
+  const isSyncingSteps = useActivityStore((s) => s.isSyncing);
+  const syncSteps = useActivityStore((s) => s.syncSteps);
+
+  // Sync steps once on mount
+  useEffect(() => {
+    syncSteps();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [refreshing, setRefreshing] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    syncSteps();
     setTimeout(() => {
       setRefreshKey((k) => k + 1);
       setRefreshing(false);
     }, 600);
-  }, []);
+  }, [syncSteps]);
 
   const todayStr = getTodayStr();
 
@@ -688,6 +814,20 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        <View style={styles.sectionGap} />
+
+        {/* ── Steps Today ────────────────────────────────────────────────── */}
+        <Text style={styles.sectionTitle}>
+          {t('home.stepsToday', 'Steps Today')} 👟
+        </Text>
+        <StepsCard
+          steps={stepsToday}
+          goal={stepsGoal}
+          isSyncing={isSyncingSteps}
+          styles={styles}
+          t={t}
+        />
 
         <View style={styles.sectionGap} />
 

@@ -260,6 +260,70 @@ async function androidGetGlucoseReadings(
   }
 }
 
+// ─── Steps — iOS ──────────────────────────────────────────────────────────────
+
+async function iosGetStepsToday(): Promise<number> {
+  const HK = loadHealthKit();
+  if (!HK) return 0;
+
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  return new Promise((resolve) => {
+    HK.getStepCount(
+      { date: now.toISOString(), includeManuallyAdded: true },
+      (err: Error | null, result: { value: number }) => {
+        if (err || result == null) {
+          // Fallback: sum step samples for today
+          HK.getDailyStepCountSamples(
+            {
+              startDate: startOfDay.toISOString(),
+              endDate: now.toISOString(),
+            },
+            (e: Error | null, samples: Array<{ value: number }>) => {
+              if (e || !Array.isArray(samples)) {
+                resolve(0);
+                return;
+              }
+              resolve(samples.reduce((sum, s) => sum + (s.value ?? 0), 0));
+            },
+          );
+        } else {
+          resolve(Math.round(result.value ?? 0));
+        }
+      },
+    );
+  });
+}
+
+// ─── Steps — Android ──────────────────────────────────────────────────────────
+
+async function androidGetStepsToday(): Promise<number> {
+  const HC = loadHealthConnect();
+  if (!HC) return 0;
+
+  try {
+    await HC.initialize();
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const result = await HC.readRecords('Steps', {
+      timeRangeFilter: {
+        operator: 'between',
+        startTime: startOfDay.toISOString(),
+        endTime: now.toISOString(),
+      },
+    });
+
+    const records: any[] = result?.records ?? result ?? [];
+    return records.reduce((sum: number, r: any) => sum + (r.count ?? 0), 0);
+  } catch {
+    return 0;
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export const healthService = {
@@ -302,6 +366,13 @@ export const healthService = {
   async getGlucoseSummary(period: GlucosePeriod): Promise<GlucoseSummary> {
     const readings = await this.getGlucoseReadings(period);
     return summarizeReadings(readings, period);
+  },
+
+  /** Fetch total step count for today (midnight → now). Returns 0 if unavailable. */
+  async getStepsToday(): Promise<number> {
+    if (Platform.OS === 'ios') return iosGetStepsToday();
+    if (Platform.OS === 'android') return androidGetStepsToday();
+    return 0;
   },
 };
 
