@@ -77,9 +77,19 @@ export const useGlucoseStore = create<GlucoseState & GlucoseActions>()(
             platform: platform as any,
             permissionStatus: 'not_determined',
           },
+          lastError: null,
         }));
 
-        const status = await healthService.requestPermissions();
+        let status: HealthPermissionStatus = 'unavailable';
+        try {
+          status = await healthService.requestPermissions();
+        } catch (e: any) {
+          set({ lastError: e?.message ?? 'Could not connect to health service' });
+          set((s) => ({
+            connection: { ...s.connection, permissionStatus: 'denied' },
+          }));
+          return 'denied';
+        }
 
         set((s) => ({
           connection: {
