@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import {
   getSetCompleteMessage,
   getWorkoutStartMessage,
@@ -6,23 +5,13 @@ import {
   generateOnDemandCoachTip,
 } from '../../services/voiceCoachService';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Mock the AI server client — services proxy through the backend, not Anthropic directly
+jest.mock('../../services/aiServerClient', () => ({
+  callAI: jest.fn(),
+}));
 
-function mockAnthropicResponse(text: string) {
-  const fakeInstance = {
-    messages: {
-      create: jest.fn().mockResolvedValue({
-        id: 'msg_mock',
-        content: [{ type: 'text', text }],
-        stop_reason: 'end_turn',
-        usage: { input_tokens: 100, output_tokens: 50 },
-      }),
-    },
-  };
-  (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-    () => fakeInstance as unknown as Anthropic,
-  );
-}
+import { callAI } from '../../services/aiServerClient';
+const mockCallAI = callAI as jest.MockedFunction<typeof callAI>;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -83,7 +72,7 @@ describe('getWorkoutStartMessage', () => {
 
 describe('generateWorkoutSummary', () => {
   it('returns the AI-generated text', async () => {
-    mockAnthropicResponse('Amazing workout! You completed 12 sets in 45 minutes. Recovery starts now!');
+    mockCallAI.mockResolvedValueOnce('Amazing workout! You completed 12 sets in 45 minutes. Recovery starts now!');
     const result = await generateWorkoutSummary({
       workoutName: 'Push Day',
       totalSets: 15,
@@ -94,28 +83,22 @@ describe('generateWorkoutSummary', () => {
     expect(result).toContain('Amazing workout!');
   });
 
-  it('calls messages.create (not stream) with claude-opus-4-6', async () => {
-    mockAnthropicResponse('Great job!');
+  it('calls callAI with /ai/voice-coach endpoint and maxTokens: 256', async () => {
+    mockCallAI.mockResolvedValueOnce('Great job!');
     await generateWorkoutSummary({
       workoutName: 'Leg Day',
       totalSets: 10,
       completedSets: 10,
       durationSeconds: 3600,
     });
-    const instance = (Anthropic as jest.MockedClass<typeof Anthropic>).mock.results[0]?.value;
-    expect(instance.messages.create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'claude-opus-4-6', max_tokens: 256 }),
+    expect(mockCallAI).toHaveBeenCalledWith(
+      '/ai/voice-coach',
+      expect.objectContaining({ maxTokens: 256 }),
     );
   });
 
   it('returns fallback when API throws', async () => {
-    const errInstance = {
-      messages: { create: jest.fn().mockRejectedValue(new Error('Network error')) },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => errInstance as unknown as Anthropic,
-    );
-
+    mockCallAI.mockRejectedValueOnce(new Error('Network error'));
     const result = await generateWorkoutSummary({
       workoutName: 'Pull Day',
       totalSets: 8,
@@ -127,13 +110,7 @@ describe('generateWorkoutSummary', () => {
   });
 
   it('returns Romanian fallback for ro language', async () => {
-    const errInstance = {
-      messages: { create: jest.fn().mockRejectedValue(new Error('Timeout')) },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => errInstance as unknown as Anthropic,
-    );
-
+    mockCallAI.mockRejectedValueOnce(new Error('Timeout'));
     const result = await generateWorkoutSummary({
       workoutName: 'Antrenament Push',
       totalSets: 10,
@@ -145,7 +122,7 @@ describe('generateWorkoutSummary', () => {
   });
 
   it('includes newPRs in prompt when provided', async () => {
-    mockAnthropicResponse('PR celebration!');
+    mockCallAI.mockResolvedValueOnce('PR celebration!');
     await generateWorkoutSummary({
       workoutName: 'Push Day',
       totalSets: 10,
@@ -153,15 +130,14 @@ describe('generateWorkoutSummary', () => {
       durationSeconds: 2400,
       newPRs: ['Bench Press', 'Overhead Press'],
     });
-    const instance = (Anthropic as jest.MockedClass<typeof Anthropic>).mock.results[0]?.value;
-    const calledPrompt = instance.messages.create.mock.calls[0][0].messages[0].content as string;
+    const calledPrompt = mockCallAI.mock.calls[0][1].prompt as string;
     expect(calledPrompt).toContain('Bench Press');
   });
 });
 
 describe('generateOnDemandCoachTip', () => {
-  it('returns a coaching tip string', async () => {
-    mockAnthropicResponse('Keep your chest up and drive through your heels!');
+  it('returns the AI-generated tip', async () => {
+    mockCallAI.mockResolvedValueOnce('Keep your chest up and drive through your heels!');
     const tip = await generateOnDemandCoachTip({
       exerciseName: 'Squat',
       setsCompleted: 2,
@@ -173,8 +149,8 @@ describe('generateOnDemandCoachTip', () => {
     expect(tip).toContain('chest');
   });
 
-  it('calls claude-opus-4-6 with max_tokens: 128', async () => {
-    mockAnthropicResponse('Great form!');
+  it('calls callAI with /ai/voice-coach endpoint and maxTokens: 128', async () => {
+    mockCallAI.mockResolvedValueOnce('Great form!');
     await generateOnDemandCoachTip({
       exerciseName: 'Deadlift',
       setsCompleted: 1,
@@ -183,19 +159,14 @@ describe('generateOnDemandCoachTip', () => {
       reps: 5,
       workoutDurationSeconds: 600,
     });
-    const instance = (Anthropic as jest.MockedClass<typeof Anthropic>).mock.results[0]?.value;
-    expect(instance.messages.create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'claude-opus-4-6', max_tokens: 128 }),
+    expect(mockCallAI).toHaveBeenCalledWith(
+      '/ai/voice-coach',
+      expect.objectContaining({ maxTokens: 128 }),
     );
   });
 
   it('returns a fallback string on API error', async () => {
-    const errInstance = {
-      messages: { create: jest.fn().mockRejectedValue(new Error('Timeout')) },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => errInstance as unknown as Anthropic,
-    );
+    mockCallAI.mockRejectedValueOnce(new Error('Timeout'));
     const tip = await generateOnDemandCoachTip({
       exerciseName: 'Row',
       setsCompleted: 1,
@@ -209,7 +180,7 @@ describe('generateOnDemandCoachTip', () => {
   });
 
   it('generates Romanian prompt for ro language', async () => {
-    mockAnthropicResponse('Menține spatele drept!');
+    mockCallAI.mockResolvedValueOnce('Menține spatele drept!');
     await generateOnDemandCoachTip({
       exerciseName: 'Deadlift',
       setsCompleted: 2,
@@ -219,10 +190,9 @@ describe('generateOnDemandCoachTip', () => {
       workoutDurationSeconds: 1200,
       language: 'ro',
     });
-    const instance = (Anthropic as jest.MockedClass<typeof Anthropic>).mock.results[0]?.value;
-    const prompt = instance.messages.create.mock.calls[0][0].messages[0].content as string;
-    expect(prompt).toContain('Deadlift');
+    const calledPrompt = mockCallAI.mock.calls[0][1].prompt as string;
+    expect(calledPrompt).toContain('Deadlift');
     // Romanian prompt contains Romanian words
-    expect(prompt).toMatch(/antrenor|sfat|serii/i);
+    expect(calledPrompt).toMatch(/antrenor|sfat|serii/i);
   });
 });

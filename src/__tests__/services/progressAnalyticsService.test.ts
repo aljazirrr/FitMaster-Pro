@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import {
   linearRegression,
   weeklyRate,
@@ -7,6 +6,14 @@ import {
   predictGoalDate,
   generateProgressInsights,
 } from '../../services/progressAnalyticsService';
+
+// Mock the AI server client — services proxy through the backend, not Anthropic directly
+jest.mock('../../services/aiServerClient', () => ({
+  callAI: jest.fn(),
+}));
+
+import { callAI } from '../../services/aiServerClient';
+const mockCallAI = callAI as jest.MockedFunction<typeof callAI>;
 
 // ─── Test data ────────────────────────────────────────────────────────────────
 
@@ -181,27 +188,13 @@ describe('predictGoalDate', () => {
 // ─── generateProgressInsights ─────────────────────────────────────────────────
 
 describe('generateProgressInsights', () => {
-  function mockAnthropicResponse(json: object) {
-    const instance = {
-      messages: {
-        create: jest.fn().mockResolvedValue({
-          content: [{ type: 'text', text: JSON.stringify(json) }],
-          stop_reason: 'end_turn',
-        }),
-      },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => instance as unknown as Anthropic,
-    );
-  }
-
   beforeEach(() => jest.clearAllMocks());
 
   it('returns valid insights object with AI response', async () => {
-    mockAnthropicResponse({
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
       summary: 'Great progress! You have lost 5kg.',
       recommendations: ['Eat more protein', 'Sleep 8 hours', 'Add cardio'],
-    });
+    }));
 
     const insights = await generateProgressInsights({
       weightEntries: WEIGHT_LOSS_ENTRIES,
@@ -218,7 +211,10 @@ describe('generateProgressInsights', () => {
   });
 
   it('includes projectedGoalDate when target is set', async () => {
-    mockAnthropicResponse({ summary: 'Nice work!', recommendations: ['Keep going'] });
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
+      summary: 'Nice work!',
+      recommendations: ['Keep going'],
+    }));
 
     const insights = await generateProgressInsights({
       weightEntries: WEIGHT_LOSS_ENTRIES,
@@ -231,19 +227,17 @@ describe('generateProgressInsights', () => {
   });
 
   it('returns null projectedGoalDate when no target set', async () => {
-    mockAnthropicResponse({ summary: 'Looking good!', recommendations: ['Stay consistent'] });
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
+      summary: 'Looking good!',
+      recommendations: ['Stay consistent'],
+    }));
 
     const insights = await generateProgressInsights({ weightEntries: WEIGHT_LOSS_ENTRIES });
     expect(insights.projectedGoalDate).toBeNull();
   });
 
   it('uses fallback summary when AI fails', async () => {
-    const errInstance = {
-      messages: { create: jest.fn().mockRejectedValue(new Error('Network error')) },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => errInstance as unknown as Anthropic,
-    );
+    mockCallAI.mockRejectedValueOnce(new Error('Network error'));
 
     const insights = await generateProgressInsights({
       weightEntries: WEIGHT_LOSS_ENTRIES,
@@ -256,12 +250,7 @@ describe('generateProgressInsights', () => {
   });
 
   it('uses Romanian fallback for ro language', async () => {
-    const errInstance = {
-      messages: { create: jest.fn().mockRejectedValue(new Error('Timeout')) },
-    };
-    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementationOnce(
-      () => errInstance as unknown as Anthropic,
-    );
+    mockCallAI.mockRejectedValueOnce(new Error('Timeout'));
 
     const insights = await generateProgressInsights({
       weightEntries: WEIGHT_LOSS_ENTRIES,
@@ -273,33 +262,37 @@ describe('generateProgressInsights', () => {
   });
 
   it('classifies plateau trend for flat entries', async () => {
-    mockAnthropicResponse({ summary: 'Stable.', recommendations: ['Adjust diet'] });
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
+      summary: 'Stable.',
+      recommendations: ['Adjust diet'],
+    }));
 
     const insights = await generateProgressInsights({ weightEntries: FLAT_ENTRIES });
     expect(insights.trend).toBe('plateau');
   });
 
   it('caps recommendations at 3 items', async () => {
-    mockAnthropicResponse({
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
       summary: 'Good job.',
       recommendations: ['tip1', 'tip2', 'tip3', 'tip4', 'tip5'],
-    });
+    }));
 
     const insights = await generateProgressInsights({ weightEntries: WEIGHT_LOSS_ENTRIES });
     expect(insights.recommendations.length).toBeLessThanOrEqual(3);
   });
 
-  it('uses claude-opus-4-6 with adaptive thinking', async () => {
-    mockAnthropicResponse({ summary: 'Great!', recommendations: ['Keep going'] });
+  it('calls callAI with /ai/progress-insights endpoint', async () => {
+    mockCallAI.mockResolvedValueOnce(JSON.stringify({
+      summary: 'Great!',
+      recommendations: ['Keep going'],
+    }));
 
     await generateProgressInsights({ weightEntries: WEIGHT_LOSS_ENTRIES });
 
-    const instance = (Anthropic as jest.MockedClass<typeof Anthropic>).mock.results[0]?.value;
-    expect(instance.messages.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: 'claude-opus-4-6',
-        thinking: { type: 'adaptive' },
-      }),
+    expect(mockCallAI).toHaveBeenCalledWith(
+      '/ai/progress-insights',
+      expect.objectContaining({ prompt: expect.any(String) }),
+      60_000,
     );
   });
 });

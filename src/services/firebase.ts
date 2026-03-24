@@ -17,11 +17,14 @@
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  getAuth,
-  initializeAuth,
-  getReactNativePersistence,
-} from 'firebase/auth';
+import { getAuth, initializeAuth } from 'firebase/auth';
+
+// In Firebase v12 the RN persistence helper is exported at runtime but missing
+// from the public type declarations. Use a typed re-export to keep TS happy.
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const { getReactNativePersistence } = require('firebase/auth') as {
+  getReactNativePersistence: (storage: unknown) => import('firebase/auth').Persistence;
+};
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';

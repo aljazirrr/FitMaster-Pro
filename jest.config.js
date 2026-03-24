@@ -14,6 +14,7 @@ module.exports = {
     '^@anthropic-ai/sdk$': '<rootDir>/__mocks__/@anthropic-ai/sdk.js',
     '^expo-speech$': '<rootDir>/__mocks__/expo-speech.js',
     '^expo-camera$': '<rootDir>/__mocks__/expo-camera.js',
+    '^expo-localization$': '<rootDir>/__mocks__/expo-localization.js',
     // Firebase — mock all sub-modules in tests
     '^firebase/app$': '<rootDir>/__mocks__/firebase/app.js',
     '^firebase/auth$': '<rootDir>/__mocks__/firebase/auth.js',

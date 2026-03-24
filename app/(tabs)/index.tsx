@@ -46,7 +46,7 @@ function getTodayStr(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function calcEntriesNutrition(entries: MealEntry[], customFoods: import('../../../src/types/nutrition').FoodItem[] = []) {
+function calcEntriesNutrition(entries: MealEntry[], customFoods: import('../../src/types/nutrition').FoodItem[] = []) {
   let calories = 0;
   let protein = 0;
   let carbs = 0;

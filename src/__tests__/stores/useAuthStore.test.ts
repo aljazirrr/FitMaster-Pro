@@ -11,8 +11,22 @@ jest.mock('../../services/authService', () => ({
   },
 }));
 
+jest.mock('../../services/firebaseAuthService', () => ({
+  __esModule: true,
+  default: {
+    isConfigured: jest.fn(() => true),
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    getProfile: jest.fn(),
+    updateProfile: jest.fn(),
+  },
+}));
+
 import authService from '../../services/authService';
+import firebaseAuthService from '../../services/firebaseAuthService';
 const mockAuth = authService as jest.Mocked<typeof authService>;
+const mockFirebaseAuth = firebaseAuthService as jest.Mocked<typeof firebaseAuthService>;
 
 const defaultUser = {
   id: '1',
@@ -71,7 +85,7 @@ describe('useAuthStore', () => {
   describe('loginAsync', () => {
     it('sets user and isAuthenticated on success', async () => {
       const user = { ...defaultUser, email: 'test@example.com', lastActive: new Date().toISOString() } as any;
-      mockAuth.login.mockResolvedValueOnce({ user, tokens: { accessToken: 'a', refreshToken: 'r' } });
+      mockFirebaseAuth.login.mockResolvedValueOnce(user);
       useAuthStore.setState({ isAuthenticated: false, user: null });
       await useAuthStore.getState().loginAsync('test@example.com', 'password');
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
@@ -79,7 +93,7 @@ describe('useAuthStore', () => {
     });
 
     it('sets error on failure', async () => {
-      mockAuth.login.mockRejectedValueOnce(new Error('Invalid credentials'));
+      mockFirebaseAuth.login.mockRejectedValueOnce(new Error('Invalid credentials'));
       await expect(useAuthStore.getState().loginAsync('bad@example.com', 'wrong')).rejects.toThrow();
       expect(useAuthStore.getState().error).toBe('Invalid credentials');
       expect(useAuthStore.getState().isLoading).toBe(false);
@@ -89,7 +103,7 @@ describe('useAuthStore', () => {
   describe('registerAsync', () => {
     it('sets user and isAuthenticated on success', async () => {
       const user = { ...defaultUser, name: 'Maria', email: 'maria@example.com', lastActive: new Date().toISOString() } as any;
-      mockAuth.register.mockResolvedValueOnce({ user, tokens: { accessToken: 'a', refreshToken: 'r' } });
+      mockFirebaseAuth.register.mockResolvedValueOnce(user);
       await useAuthStore.getState().registerAsync('Maria', 'maria@example.com', 'pass');
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
       expect(useAuthStore.getState().user?.name).toBe('Maria');
@@ -98,7 +112,7 @@ describe('useAuthStore', () => {
 
   describe('logoutAsync', () => {
     it('clears user and authentication state', async () => {
-      mockAuth.logout.mockResolvedValueOnce(undefined);
+      mockFirebaseAuth.logout.mockResolvedValueOnce(undefined as any);
       await useAuthStore.getState().logoutAsync();
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(false);
@@ -108,7 +122,7 @@ describe('useAuthStore', () => {
     });
 
     it('clears state even if server call fails', async () => {
-      mockAuth.logout.mockRejectedValueOnce(new Error('Network error'));
+      mockFirebaseAuth.logout.mockRejectedValueOnce(new Error('Network error'));
       await useAuthStore.getState().logoutAsync();
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
       expect(useAuthStore.getState().user).toBeNull();

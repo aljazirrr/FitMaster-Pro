@@ -295,7 +295,7 @@ export async function getPushToken(): Promise<string | null> {
   if (!granted) return null;
 
   try {
-    const token = await Notifications.getExpoPushTokenAsync();
+    const token = await Notifications!.getExpoPushTokenAsync();
     return token.data;
   } catch {
     return null;
