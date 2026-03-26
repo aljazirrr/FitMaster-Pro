@@ -214,19 +214,46 @@ export async function lookupBarcode(
   // 2. Open Food Facts (free public API)
   const offResult = await fetchFromOpenFoodFacts(barcode);
   if (offResult) {
-    // If Romanian name missing, enrich with Claude (non-blocking enrichment)
-    if (offResult.nameRo === offResult.name) {
-      try {
-        const enriched = await enrichWithClaude(barcode, offResult, language);
-        offResult.nameRo = enriched.nameRo;
-      } catch {
-        // keep original
+    // Enrich with Claude: translate to Romanian AND verify the product name
+    // (OFH sometimes has wrong products for regional barcodes)
+    try {
+      const enriched = await enrichWithClaude(barcode, offResult, language);
+      offResult.nameRo = enriched.nameRo;
+      // If Claude returned a significantly different name, trust Claude's version
+      // (handles the case where OFH has wrong product for a Romanian barcode)
+      if (
+        enriched.name &&
+        enriched.name !== 'Unknown Product' &&
+        enriched.name.toLowerCase() !== offResult.name.toLowerCase()
+      ) {
+        offResult.name = enriched.name;
+        offResult.calories = enriched.calories;
+        offResult.protein = enriched.protein;
+        offResult.carbs = enriched.carbs;
+        offResult.fat = enriched.fat;
+        if (enriched.fiber != null) offResult.fiber = enriched.fiber;
+        if (enriched.sugar != null) offResult.sugar = enriched.sugar;
+        if (enriched.sodium != null) offResult.sodium = enriched.sodium;
       }
+    } catch {
+      // keep original OFH data
     }
     return { foodItem: offResult, source: 'openfoodfacts' };
   }
 
   // 3. Claude AI as last resort
+  const aiResult = await enrichWithClaude(barcode, null, language);
+  return { foodItem: aiResult, source: 'ai' };
+}
+
+/**
+ * Force re-lookup using only Claude AI, bypassing Open Food Facts.
+ * Use when the OFH result appears incorrect.
+ */
+export async function lookupBarcodeWithAI(
+  barcode: string,
+  language: 'en' | 'ro' = 'en',
+): Promise<BarcodeLookupResult> {
   const aiResult = await enrichWithClaude(barcode, null, language);
   return { foodItem: aiResult, source: 'ai' };
 }

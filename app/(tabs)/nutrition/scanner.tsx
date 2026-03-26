@@ -28,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
 import useSettingsStore from '../../../src/stores/useSettingsStore';
-import { isValidBarcode } from '../../../src/services/barcodeScannerService';
+import { isValidBarcode, lookupBarcodeWithAI } from '../../../src/services/barcodeScannerService';
 import type { MealType } from '../../../src/types/nutrition';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -53,6 +53,7 @@ export default function BarcodeScannerScreen() {
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
   const [servings, setServings] = useState(1);
+  const [isAIOverriding, setIsAIOverriding] = useState(false);
   const cooldownRef = useRef(false);
 
   // Clear stale results on mount
@@ -85,6 +86,24 @@ export default function BarcodeScannerScreen() {
     setLastBarcode(null);
     setServings(1);
     setIsScanning(true);
+    setIsAIOverriding(false);
+  };
+
+  const handleAIOverride = async () => {
+    if (!lastBarcode) return;
+    setIsAIOverriding(true);
+    try {
+      const result = await lookupBarcodeWithAI(lastBarcode, language as 'en' | 'ro');
+      // Directly update the store's scannedFood via the store setter
+      useNutritionStore.setState({ scannedFood: result });
+    } catch {
+      Alert.alert(
+        language === 'ro' ? 'Eroare AI' : 'AI Error',
+        language === 'ro' ? 'Nu s-a putut estima produsul.' : 'Could not estimate the product.',
+      );
+    } finally {
+      setIsAIOverriding(false);
+    }
   };
 
   const handleAddToMeal = () => {
@@ -197,10 +216,26 @@ export default function BarcodeScannerScreen() {
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
             <View style={styles.resultCard}>
               {/* Source badge */}
-              <View style={[styles.sourceBadge, sourceBadgeColor(scannedFood.source, theme)]}>
-                <Text style={styles.sourceBadgeText}>
-                  {sourceLabel(scannedFood.source, language)}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <View style={[styles.sourceBadge, sourceBadgeColor(scannedFood.source, theme)]}>
+                  <Text style={styles.sourceBadgeText}>
+                    {sourceLabel(scannedFood.source, language)}
+                  </Text>
+                </View>
+                {/* Wrong product override — available when source is OFH */}
+                {scannedFood.source === 'openfoodfacts' && (
+                  <TouchableOpacity
+                    onPress={handleAIOverride}
+                    disabled={isAIOverriding}
+                    style={styles.aiOverrideBtn}
+                  >
+                    <Text style={styles.aiOverrideBtnText}>
+                      {isAIOverriding
+                        ? (language === 'ro' ? '⏳ Se estimează…' : '⏳ Estimating…')
+                        : (language === 'ro' ? '❌ Produs greșit? Folosește AI' : '❌ Wrong product? Use AI')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* AI estimate warning */}
@@ -481,6 +516,15 @@ function useStyles(theme: any) {
       borderRadius: 12,
     },
     sourceBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+    aiOverrideBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: '#FF980022',
+      borderWidth: 1,
+      borderColor: '#FF9800',
+    },
+    aiOverrideBtnText: { color: '#FF9800', fontSize: 11, fontWeight: '600' },
     foodName: {
       color: theme.colors.text,
       fontSize: 20,

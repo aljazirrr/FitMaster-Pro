@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import healthService, { summarizeReadings } from '../services/healthService';
 import type {
   GlucoseReading,
@@ -65,11 +66,7 @@ export const useGlucoseStore = create<GlucoseState & GlucoseActions>()(
         set((s) => ({ connection: { ...s.connection, ...config } })),
 
       connectAsync: async () => {
-        const platform = healthService ? (
-          (await import('react-native')).Platform.OS === 'ios'
-            ? 'apple_health'
-            : 'health_connect'
-        ) : 'none';
+        const platform = Platform.OS === 'ios' ? 'apple_health' : 'health_connect';
 
         set((s) => ({
           connection: {

@@ -104,10 +104,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="community"
         options={{
-          title: t('tabs.community'),
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="community" focused={focused} color={color} />
-          ),
+          href: null, // Community tab hidden — feature not ready
         }}
       />
       <Tabs.Screen

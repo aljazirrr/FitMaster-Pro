@@ -56,6 +56,11 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       syncSteps: async () => {
         set({ isSyncing: true });
         try {
+          // Ensure step-count permission is granted before reading
+          const available = await healthService.isAvailable();
+          if (available) {
+            await healthService.requestStepsPermission();
+          }
           const steps = await healthService.getStepsToday();
           set({
             stepsToday: steps,

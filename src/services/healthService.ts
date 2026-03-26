@@ -152,7 +152,10 @@ async function iosRequestPermissions(): Promise<HealthPermissionStatus> {
 
   const permissions = {
     permissions: {
-      read: [HK.Constants.Permissions.BloodGlucose],
+      read: [
+        HK.Constants.Permissions.BloodGlucose,
+        HK.Constants.Permissions.StepCount,
+      ],
       write: [],
     },
   };
@@ -221,6 +224,7 @@ async function androidRequestPermissions(): Promise<HealthPermissionStatus> {
     await HC.initialize();
     const granted: any[] = await HC.requestPermission([
       { accessType: 'read', recordType: 'BloodGlucose' },
+      { accessType: 'read', recordType: 'Steps' },
     ]);
     const hasBloodGlucose = granted.some(
       (p) => p.recordType === 'BloodGlucose' && p.accessType === 'read',
@@ -334,11 +338,42 @@ export const healthService = {
     return false;
   },
 
-  /** Request blood glucose read permission */
+  /** Request blood glucose + step count read permissions */
   async requestPermissions(): Promise<HealthPermissionStatus> {
     if (Platform.OS === 'ios') return iosRequestPermissions();
     if (Platform.OS === 'android') return androidRequestPermissions();
     return 'unavailable';
+  },
+
+  /** Request only step count permission (for activity tracking without CGM) */
+  async requestStepsPermission(): Promise<boolean> {
+    if (Platform.OS === 'ios') {
+      const HK = loadHealthKit();
+      if (!HK) return false;
+      const permissions = {
+        permissions: {
+          read: [HK.Constants.Permissions.StepCount],
+          write: [],
+        },
+      };
+      return new Promise((resolve) => {
+        HK.initHealthKit(permissions, (err: Error | null) => resolve(!err));
+      });
+    }
+    if (Platform.OS === 'android') {
+      const HC = loadHealthConnect();
+      if (!HC) return false;
+      try {
+        await HC.initialize();
+        const granted: any[] = await HC.requestPermission([
+          { accessType: 'read', recordType: 'Steps' },
+        ]);
+        return granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
+      } catch {
+        return false;
+      }
+    }
+    return false;
   },
 
   /**

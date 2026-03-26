@@ -31,6 +31,8 @@ interface AuthActions {
   logoutAsync: () => Promise<void>;
   syncProfileAsync: () => Promise<void>;
   updateProfileAsync: (updates: Partial<UserProfile>) => Promise<void>;
+  /** Restore a persisted session after biometric verification succeeds */
+  biometricLoginAsync: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -155,6 +157,21 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           set({ user });
         } catch {
           // Silently fail — local profile is the fallback
+        }
+      },
+
+      biometricLoginAsync: async () => {
+        const storedUser = (get() as any).user as UserProfile | null;
+        if (!storedUser) {
+          throw new Error('No previous session found. Please log in with email and password first.');
+        }
+        // Restore the persisted session — biometric has already verified identity
+        set({ isAuthenticated: true, isOnboarded: true, error: null });
+        // Try to silently refresh Firebase profile in background
+        if (firebaseAuthService.isConfigured()) {
+          firebaseAuthService.getProfile().then((freshUser) => {
+            if (freshUser) set({ user: freshUser });
+          }).catch(() => {});
         }
       },
 

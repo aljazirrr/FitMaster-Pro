@@ -6,7 +6,7 @@
  *   EXPO_PUBLIC_AI_SERVER_SECRET  shared secret between app and server
  */
 
-const SERVER_URL = process.env.EXPO_PUBLIC_AI_SERVER_URL ?? '';
+export const SERVER_URL = process.env.EXPO_PUBLIC_AI_SERVER_URL ?? '';
 const APP_SECRET = process.env.EXPO_PUBLIC_AI_SERVER_SECRET ?? '';
 
 function headers() {
@@ -25,6 +25,9 @@ export async function callAI(
   body: Record<string, unknown>,
   timeoutMs = 30_000,
 ): Promise<string> {
+  if (!SERVER_URL) {
+    throw new Error('AI_SERVER_NOT_CONFIGURED');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -54,6 +57,9 @@ export async function streamAI(
   onChunk?: (delta: string) => void,
   timeoutMs = 120_000,
 ): Promise<string> {
+  if (!SERVER_URL) {
+    throw new Error('AI_SERVER_NOT_CONFIGURED');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 

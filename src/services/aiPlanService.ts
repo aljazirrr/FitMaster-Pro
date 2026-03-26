@@ -2,10 +2,17 @@
  * aiPlanService — AI-powered workout plan generation using Claude claude-opus-4-6.
  * AI calls are proxied through the FitMaster backend server.
  */
-import { streamAI } from './aiServerClient';
+import Anthropic from '@anthropic-ai/sdk';
+import { streamAI, SERVER_URL } from './aiServerClient';
 import type { WorkoutPlan, WorkoutLevel } from '../types/workout';
 import type { FitnessGoal } from '../types/user';
 import { Equipment } from '../types/exercise';
+
+// Used when no server URL is configured — calls Claude directly from the client
+const directClient = new Anthropic({
+  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
+  dangerouslyAllowBrowser: true,
+});
 
 // ─── Request params ───────────────────────────────────────────────────────────
 
@@ -122,7 +129,27 @@ export async function generateAIWorkoutPlan(
   onProgress?: (chunk: string) => void,
 ): Promise<WorkoutPlan> {
   const prompt = buildPrompt(params);
-  const fullText = await streamAI('/ai/workout-plan', { prompt }, onProgress, 120_000);
+
+  let fullText: string;
+  if (SERVER_URL) {
+    // Preferred: stream via backend proxy (supports extended thinking)
+    fullText = await streamAI('/ai/workout-plan', { prompt }, onProgress, 120_000);
+  } else {
+    // Fallback: call Claude directly from the client
+    const stream = directClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    let accumulated = '';
+    stream.on('text', (delta: string) => {
+      accumulated += delta;
+      onProgress?.(delta);
+    });
+    await stream.finalMessage();
+    fullText = accumulated;
+  }
+
   return parsePlanJSON(fullText, params);
 }
 

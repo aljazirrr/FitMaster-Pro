@@ -103,7 +103,6 @@ app.post('/ai/progress-insights', async (req, res) => {
     const response = await client.messages.create({
       model: 'claude-opus-4-6',
       max_tokens: 512,
-      thinking: { type: 'adaptive' },
       messages: [{ role: 'user', content: prompt }],
     });
     const textBlock = response.content.find((b) => b.type === 'text');

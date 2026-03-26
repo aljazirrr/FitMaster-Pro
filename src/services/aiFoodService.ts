@@ -5,8 +5,14 @@
  * calories, protein, carbs, fat, and fiber.
  * Calls the FitMaster AI proxy server (same pattern as aiPlanService).
  */
-import { callAI } from './aiServerClient';
+import Anthropic from '@anthropic-ai/sdk';
+import { callAI, SERVER_URL } from './aiServerClient';
 import type { FoodItem } from '../types/nutrition';
+
+const directClient = new Anthropic({
+  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
+  dangerouslyAllowBrowser: true,
+});
 
 function generateId(): string {
   return 'custom-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
@@ -34,7 +40,18 @@ Return ONLY valid JSON, no markdown, no extra text:
 
 Use standard nutritional databases (USDA, etc.) as reference. Round to 1 decimal place.`;
 
-  const raw = await callAI('/ai/food-macros', { prompt });
+  let raw: string;
+  if (SERVER_URL) {
+    raw = await callAI('/ai/food-macros', { prompt });
+  } else {
+    const response = await directClient.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const block = response.content.find((b) => b.type === 'text');
+    raw = block?.type === 'text' ? block.text : '';
+  }
   const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
   const data = JSON.parse(jsonStr);
 
