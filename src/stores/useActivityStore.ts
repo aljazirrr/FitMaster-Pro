@@ -56,11 +56,9 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       syncSteps: async () => {
         set({ isSyncing: true });
         try {
-          // Ensure step-count permission is granted before reading
-          const available = await healthService.isAvailable();
-          if (available) {
-            await healthService.requestStepsPermission();
-          }
+          // Just read steps — permission must be requested via explicit user action,
+          // not automatically on mount (Android Health Connect crashes if the
+          // Activity Result launcher hasn't been initialized yet).
           const steps = await healthService.getStepsToday();
           set({
             stepsToday: steps,
