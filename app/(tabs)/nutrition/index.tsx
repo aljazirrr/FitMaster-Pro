@@ -943,7 +943,7 @@ export default function NutritionScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('breakfast');
 
-  const { getDailyNutrition, addMealEntry, customFoods } = useNutritionStore();
+  const { getDailyNutrition, addMealEntry, customFoods, savedMealPlans } = useNutritionStore();
   const daily = getDailyNutrition(date);
 
   // Computed totals (includes custom AI-added foods)
@@ -1123,6 +1123,40 @@ export default function NutritionScreen() {
         {/* Water Tracker */}
         <Text style={styles.sectionHeader}>{t('nutrition.hydration')}</Text>
         <WaterTracker date={date} />
+
+        {/* Saved AI Meal Plans */}
+        {savedMealPlans.length > 0 && (
+          <>
+            <Text style={styles.sectionHeader}>✨ AI Meal Plans</Text>
+            {savedMealPlans.map((mp) => (
+              <TouchableOpacity
+                key={mp.id}
+                style={{
+                  backgroundColor: theme.colors.card,
+                  borderRadius: theme.spacing.borderRadius.lg,
+                  padding: theme.spacing.cardPadding,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  marginBottom: theme.spacing.sm,
+                }}
+                activeOpacity={0.75}
+                onPress={() => router.push({ pathname: '/(tabs)/nutrition/generate-meal-plan' as any, params: { viewId: mp.id } })}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 15 }}>{mp.nameRo || mp.name}</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                      {mp.targetCalories} kcal/zi · {mp.days.length} zile · {new Date(mp.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: theme.colors.primary + '22', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ color: theme.colors.primary, fontSize: 11, fontWeight: '700' }}>AI</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
 
         <View style={styles.bottomPadding} />
       </ScrollView>

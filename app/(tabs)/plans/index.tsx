@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { workoutPlans } from '../../../src/data/workoutPlans';
+import { useWorkoutStore } from '../../../src/stores/useWorkoutStore';
 import type { WorkoutPlan } from '../../../src/types/workout';
 
 // ---------------------------------------------------------------------------
@@ -142,9 +143,10 @@ interface PlanCardProps {
   colors: ReturnType<typeof useTheme>['theme']['colors'];
   spacing: ReturnType<typeof useTheme>['theme']['spacing'];
   typography: ReturnType<typeof useTheme>['theme']['typography'];
+  onDelete?: () => void;
 }
 
-function PlanCard({ plan, colors, spacing, typography }: PlanCardProps) {
+function PlanCard({ plan, colors, spacing, typography, onDelete }: PlanCardProps) {
   const levelColor = getLevelColor(plan.level, colors);
 
   const styles = StyleSheet.create({
@@ -224,10 +226,22 @@ function PlanCard({ plan, colors, spacing, typography }: PlanCardProps) {
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.titleWrap}>
+          {plan.createdBy === 'AI' && (
+            <View style={{ backgroundColor: colors.primary + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4 }}>
+              <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>✨ AI GENERATED</Text>
+            </View>
+          )}
           <Text style={styles.name}>{plan.name}</Text>
         </View>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelBadgeText}>{capitalize(plan.level)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelBadgeText}>{capitalize(plan.level)}</Text>
+          </View>
+          {onDelete && (
+            <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ color: colors.error, fontSize: 16 }}>🗑</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -277,11 +291,17 @@ export default function PlansScreen() {
   const { theme } = useTheme();
   const { colors, spacing, typography } = theme;
   const [activeFilter, setActiveFilter] = useState<LevelFilter>('all');
+  const savedPlans = useWorkoutStore((s) => s.savedPlans);
+  const removeGeneratedPlan = useWorkoutStore((s) => s.removeGeneratedPlan);
+
+  // Combine AI-saved plans (first) with static plans, deduplicating by id
+  const savedIds = new Set(savedPlans.map((p) => p.id));
+  const allPlans = [...savedPlans, ...workoutPlans.filter((p) => !savedIds.has(p.id))];
 
   const filteredPlans =
     activeFilter === 'all'
-      ? workoutPlans
-      : workoutPlans.filter((p) => p.level === activeFilter);
+      ? allPlans
+      : allPlans.filter((p) => p.level === activeFilter);
 
   const styles = StyleSheet.create({
     safeArea: {
@@ -355,7 +375,8 @@ export default function PlansScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Workout Plans</Text>
           <Text style={styles.headerSubtitle}>
-            {workoutPlans.length} plans available
+            {allPlans.length} plans available
+            {savedPlans.length > 0 ? ` · ${savedPlans.length} AI generated` : ''}
           </Text>
         </View>
 
@@ -410,6 +431,7 @@ export default function PlansScreen() {
                 colors={colors}
                 spacing={spacing}
                 typography={typography}
+                onDelete={plan.createdBy === 'AI' ? () => removeGeneratedPlan(plan.id) : undefined}
               />
             ))
           )}
