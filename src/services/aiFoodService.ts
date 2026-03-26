@@ -9,10 +9,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { callAI, SERVER_URL } from './aiServerClient';
 import type { FoodItem } from '../types/nutrition';
 
-const directClient = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-  dangerouslyAllowBrowser: true,
-});
+function makeDirectClient() {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY_MISSING');
+  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+}
 
 function generateId(): string {
   return 'custom-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
@@ -44,7 +45,7 @@ Use standard nutritional databases (USDA, etc.) as reference. Round to 1 decimal
   if (SERVER_URL) {
     raw = await callAI('/ai/food-macros', { prompt });
   } else {
-    const response = await directClient.messages.create({
+    const response = await makeDirectClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
       messages: [{ role: 'user', content: prompt }],

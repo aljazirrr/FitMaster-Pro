@@ -8,11 +8,14 @@ import type { WorkoutPlan, WorkoutLevel } from '../types/workout';
 import type { FitnessGoal } from '../types/user';
 import { Equipment } from '../types/exercise';
 
-// Used when no server URL is configured — calls Claude directly from the client
-const directClient = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-  dangerouslyAllowBrowser: true,
-});
+// Used when no server URL is configured — calls Claude directly from the client.
+// Client is created lazily inside the function to avoid crashing on module load
+// when EXPO_PUBLIC_ANTHROPIC_API_KEY is not yet configured.
+function makeDirectClient() {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY_MISSING');
+  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+}
 
 // ─── Request params ───────────────────────────────────────────────────────────
 
@@ -135,19 +138,16 @@ export async function generateAIWorkoutPlan(
     // Preferred: stream via backend proxy (supports extended thinking)
     fullText = await streamAI('/ai/workout-plan', { prompt }, onProgress, 120_000);
   } else {
-    // Fallback: call Claude directly from the client
-    const stream = directClient.messages.stream({
+    // Fallback: call Claude directly from the client (non-streaming — RN fetch
+    // does not support SSE/streaming responses).
+    const response = await makeDirectClient().messages.create({
       model: 'claude-opus-4-6',
       max_tokens: 8192,
       messages: [{ role: 'user', content: prompt }],
     });
-    let accumulated = '';
-    stream.on('text', (delta: string) => {
-      accumulated += delta;
-      onProgress?.(delta);
-    });
-    await stream.finalMessage();
-    fullText = accumulated;
+    const block = response.content.find((b) => b.type === 'text');
+    fullText = block?.type === 'text' ? block.text : '';
+    onProgress?.(fullText);
   }
 
   return parsePlanJSON(fullText, params);

@@ -7,10 +7,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { DietType, FitnessGoal } from '../types/user';
 
-const client = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-  dangerouslyAllowBrowser: true,
-});
+function makeClient() {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY_MISSING');
+  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,25 +273,14 @@ Return ONLY valid JSON (no markdown, no extra text) with this exact structure:
   "prepTips": ["Prep chicken in bulk on Sunday", ...]
 }`;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000); // 90s timeout
-
-  try {
-    const stream = client.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }],
-    }, { signal: controller.signal });
-
-    let fullText = '';
-    stream.on('text', (delta: string) => {
-      fullText += delta;
-      onProgress?.(delta);
-    });
-
-    await stream.finalMessage();
-    return parseMealPlanJSON(fullText, params);
-  } finally {
-    clearTimeout(timeout);
-  }
+  // Non-streaming — React Native's fetch does not support SSE/streaming.
+  const response = await makeClient().messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const block = response.content.find((b) => b.type === 'text');
+  const fullText = block?.type === 'text' ? block.text : '';
+  onProgress?.(fullText);
+  return parseMealPlanJSON(fullText, params);
 }
