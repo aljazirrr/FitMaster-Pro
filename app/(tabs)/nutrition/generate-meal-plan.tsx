@@ -7,7 +7,7 @@
  *  3. preview  — day tabs with breakfast/lunch/dinner/snacks, macros, grocery list
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../src/theme';
 import { useAuthStore } from '../../../src/stores/useAuthStore';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
@@ -61,8 +61,9 @@ export default function GenerateMealPlanScreen() {
   const styles = useStyles(theme);
   const { language } = useSettingsStore();
   const { user } = useAuthStore();
-  const { saveMealPlan } = useNutritionStore();
+  const { saveMealPlan, savedMealPlans } = useNutritionStore();
   const isRo = language === 'ro';
+  const { viewId } = useLocalSearchParams<{ viewId?: string }>();
 
   // Form state — pre-fill from user profile
   const [goal, setGoal] = useState<FitnessGoal>(user?.goals?.[0] ?? 'build_muscle');
@@ -79,6 +80,17 @@ export default function GenerateMealPlanScreen() {
   const [activeTab, setActiveTab] = useState<'meals' | 'grocery' | 'tips'>('meals');
   const tokenRef = useRef(0);
   const cancelledRef = useRef(false);
+
+  // If opened with a viewId, jump straight to preview with that saved plan
+  useEffect(() => {
+    if (viewId && savedMealPlans.length > 0) {
+      const existing = savedMealPlans.find((mp) => mp.id === viewId);
+      if (existing) {
+        setPlan(existing);
+        setPhase('preview');
+      }
+    }
+  }, [viewId, savedMealPlans]);
 
   const handleGenerate = useCallback(async () => {
     cancelledRef.current = false;
@@ -283,18 +295,22 @@ export default function GenerateMealPlanScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setPhase('form')} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => viewId ? router.back() : setPhase('form')} style={styles.backBtn}>
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {isRo ? plan.nameRo : plan.name}
         </Text>
-        <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: theme.colors.primary }]}
-          onPress={handleSave}
-        >
-          <Text style={styles.saveBtnText}>{isRo ? 'Salvează' : 'Save'}</Text>
-        </TouchableOpacity>
+        {viewId ? (
+          <View style={{ width: 40 }} />
+        ) : (
+          <TouchableOpacity
+            style={[styles.saveBtn, { backgroundColor: theme.colors.primary }]}
+            onPress={handleSave}
+          >
+            <Text style={styles.saveBtnText}>{isRo ? 'Salvează' : 'Save'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Macro summary bar */}

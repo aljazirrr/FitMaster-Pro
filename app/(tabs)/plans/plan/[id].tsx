@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../../src/theme';
 import { workoutPlans } from '../../../../src/data/workoutPlans';
 import { getExerciseById } from '../../../../src/data/exercises';
+import { useWorkoutStore } from '../../../../src/stores/useWorkoutStore';
 import type { WorkoutPlan } from '../../../../src/types/workout';
 
 // ---------------------------------------------------------------------------
@@ -57,8 +58,9 @@ export default function PlanDetailScreen() {
   const { theme } = useTheme();
   const { colors, spacing, typography } = theme;
   const { id } = useLocalSearchParams<{ id: string }>();
+  const savedPlans = useWorkoutStore((s) => s.savedPlans);
 
-  const plan = workoutPlans.find((p) => p.id === id);
+  const plan = savedPlans.find((p) => p.id === id) ?? workoutPlans.find((p) => p.id === id);
 
   const styles = StyleSheet.create({
     safeArea: {
