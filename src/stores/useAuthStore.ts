@@ -37,7 +37,7 @@ interface AuthActions {
 
 export const useAuthStore = create<AuthState & AuthActions>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // ── State ────────────────────────────────────────────────────────────────
       isAuthenticated: false,
       isOnboarded: false,
@@ -161,7 +161,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       biometricLoginAsync: async () => {
-        const storedUser = (get() as any).user as UserProfile | null;
+        const storedUser = get().user;
         if (!storedUser) {
           throw new Error('No previous session found. Please log in with email and password first.');
         }
