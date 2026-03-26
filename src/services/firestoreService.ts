@@ -27,16 +27,13 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { auth, db, storage, COLLECTIONS } from './firebase';
+import { auth, db, storage, COLLECTIONS, isFirebaseConfigured } from './firebase';
 import type { WorkoutSession, PersonalRecord } from '../types/workout';
 import type { AIMealPlan } from './aiMealPlanService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isConfigured(): boolean {
-  const key = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '';
-  return key.length > 0 && key !== 'YOUR_API_KEY';
-}
+const isConfigured = isFirebaseConfigured;
 
 function uid(): string {
   const u = auth.currentUser?.uid;
