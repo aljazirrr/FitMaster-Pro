@@ -31,33 +31,56 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const firebaseConfig = {
-  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY             ?? 'YOUR_API_KEY',
-  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN         ?? 'fitmaster-pro.firebaseapp.com',
-  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID          ?? 'fitmaster-pro',
-  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET      ?? 'fitmaster-pro.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? 'YOUR_SENDER_ID',
-  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID              ?? 'YOUR_APP_ID',
-};
+const _apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '';
+
+/**
+ * Returns true only when a real Firebase API key is present.
+ * Rejects placeholders like 'YOUR_API_KEY' or the truncated 'AIzaSy...' from .env.example.
+ */
+export function isFirebaseConfigured(): boolean {
+  return _apiKey.length >= 30 && !_apiKey.includes('...') && _apiKey !== 'YOUR_API_KEY';
+}
 
 // ─── Singleton init ───────────────────────────────────────────────────────────
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Only initialise Firebase when real credentials are present.
+// This prevents auth/api-key-not-valid crashes when .env still has placeholder values.
 
-// Auth with AsyncStorage persistence on mobile
-let _auth: ReturnType<typeof getAuth>;
-try {
-  _auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} catch {
-  _auth = getAuth(app);
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let _app: ReturnType<typeof initializeApp> | null = null;
+let _auth: ReturnType<typeof getAuth> | null = null;
+let _db: ReturnType<typeof getFirestore> | null = null;
+let _storage: ReturnType<typeof getStorage> | null = null;
+
+if (isFirebaseConfigured()) {
+  const firebaseConfig = {
+    apiKey:            _apiKey,
+    authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN         ?? '',
+    projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID          ?? '',
+    storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET      ?? '',
+    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
+    appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID              ?? '',
+  };
+
+  _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+  try {
+    _auth = initializeAuth(_app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch {
+    _auth = getAuth(_app);
+  }
+
+  _db      = getFirestore(_app);
+  _storage = getStorage(_app);
 }
 
-export const auth    = _auth;
-export const db      = getFirestore(app);
-export const storage = getStorage(app);
-export default app;
+// firebaseAuthService always guards calls with isConfigured(), so null-casting is safe.
+export const auth    = _auth    as ReturnType<typeof getAuth>;
+export const db      = _db      as ReturnType<typeof getFirestore>;
+export const storage = _storage as ReturnType<typeof getStorage>;
+export default _app as ReturnType<typeof initializeApp>;
 
 // ─── Firestore paths ──────────────────────────────────────────────────────────
 

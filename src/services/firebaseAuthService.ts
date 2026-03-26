@@ -20,15 +20,12 @@ import {
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { auth, db, COLLECTIONS } from './firebase';
+import { auth, db, COLLECTIONS, isFirebaseConfigured } from './firebase';
 import type { UserProfile } from '../types/user';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isConfigured(): boolean {
-  const key = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '';
-  return key.length > 0 && key !== 'YOUR_API_KEY';
-}
+const isConfigured = isFirebaseConfigured;
 
 function fbUserToProfile(fbUser: FirebaseUser, extra?: Partial<UserProfile>): UserProfile {
   return {
