@@ -20,6 +20,8 @@ import {
   Platform,
   Dimensions,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -29,6 +31,7 @@ import { useTheme } from '../../../src/theme';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
 import useSettingsStore from '../../../src/stores/useSettingsStore';
 import { isValidBarcode, lookupBarcodeWithAI } from '../../../src/services/barcodeScannerService';
+import { estimateFoodMacros } from '../../../src/services/aiFoodService';
 import type { MealType } from '../../../src/types/nutrition';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -54,6 +57,8 @@ export default function BarcodeScannerScreen() {
   const [selectedMeal, setSelectedMeal] = useState<MealType>('lunch');
   const [servings, setServings] = useState(1);
   const [isAIOverriding, setIsAIOverriding] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [isIdentifying, setIsIdentifying] = useState(false);
   const cooldownRef = useRef(false);
 
   // Clear stale results on mount
@@ -87,6 +92,28 @@ export default function BarcodeScannerScreen() {
     setServings(1);
     setIsScanning(true);
     setIsAIOverriding(false);
+    setManualName('');
+  };
+
+  const handleIdentifyByName = async () => {
+    const name = manualName.trim();
+    if (!name) return;
+    setIsIdentifying(true);
+    try {
+      const foodItem = await estimateFoodMacros(name, 100, language as 'en' | 'ro');
+      if (lastBarcode) foodItem.barcode = lastBarcode;
+      useNutritionStore.setState({
+        scannedFood: { foodItem, source: 'ai' },
+      });
+      setManualName('');
+    } catch {
+      Alert.alert(
+        language === 'ro' ? 'Eroare AI' : 'AI Error',
+        language === 'ro' ? 'Nu s-a putut estima produsul.' : 'Could not estimate the product.',
+      );
+    } finally {
+      setIsIdentifying(false);
+    }
   };
 
   const handleAIOverride = async () => {
@@ -197,7 +224,10 @@ export default function BarcodeScannerScreen() {
       </SafeAreaView>
 
       {/* Bottom panel */}
-      <View style={styles.bottomPanel}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.bottomPanel}
+      >
         {isScanningBarcode ? (
           /* Loading state */
           <View style={styles.loadingCard}>
@@ -336,6 +366,46 @@ export default function BarcodeScannerScreen() {
               </View>
             </View>
           </ScrollView>
+        ) : scannedFood?.source === 'not_found' ? (
+          /* Product not found — ask user to enter name */
+          <View style={styles.notFoundCard}>
+            <Text style={styles.notFoundTitle}>
+              {language === 'ro' ? '🔍 Produs negăsit' : '🔍 Product not found'}
+            </Text>
+            <Text style={styles.notFoundSubtitle}>
+              {language === 'ro'
+                ? 'Codul de bare nu există în baza de date. Introdu numele produsului pentru a estima valorile nutritive:'
+                : 'Barcode not in database. Enter the product name to estimate nutritional values:'}
+            </Text>
+            <TextInput
+              style={styles.nameInput}
+              placeholder={language === 'ro' ? 'ex: miere, piept de pui, orez...' : 'e.g. honey, chicken breast, rice...'}
+              placeholderTextColor="#666"
+              value={manualName}
+              onChangeText={setManualName}
+              returnKeyType="done"
+              onSubmitEditing={handleIdentifyByName}
+              autoCapitalize="none"
+            />
+            <View style={styles.actionsRow}>
+              <TouchableOpacity style={styles.rescanBtn} onPress={handleRescan}>
+                <Text style={styles.rescanText}>
+                  {language === 'ro' ? '↩ Scanează din nou' : '↩ Scan Again'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: manualName.trim() ? theme.colors.primary : '#555', opacity: isIdentifying ? 0.7 : 1 }]}
+                onPress={handleIdentifyByName}
+                disabled={!manualName.trim() || isIdentifying}
+              >
+                <Text style={styles.addBtnText}>
+                  {isIdentifying
+                    ? (language === 'ro' ? '⏳ Se estimează...' : '⏳ Estimating...')
+                    : (language === 'ro' ? '🤖 Estimează' : '🤖 Estimate')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : (
           /* Idle hint */
           <View style={styles.idleCard}>
@@ -352,7 +422,7 @@ export default function BarcodeScannerScreen() {
             </Text>
           </View>
         )}
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -617,6 +687,35 @@ function useStyles(theme: any) {
     idleIcon: { fontSize: 36 },
     idleText: { color: '#fff', fontSize: 15, fontWeight: '600', textAlign: 'center' },
     idleSubtext: { color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center' },
+
+    // Not found card
+    notFoundCard: {
+      backgroundColor: theme.colors.card,
+      margin: 16,
+      borderRadius: 20,
+      padding: 20,
+      gap: 12,
+    },
+    notFoundTitle: {
+      color: theme.colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    notFoundSubtitle: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    nameInput: {
+      backgroundColor: theme.colors.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      color: theme.colors.text,
+      fontSize: 15,
+    },
 
     // Permission
     permText: {

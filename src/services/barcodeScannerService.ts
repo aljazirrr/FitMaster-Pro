@@ -11,10 +11,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { foods } from '../data/foods';
 import type { FoodItem } from '../types/nutrition';
 
-const client = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '',
-  dangerouslyAllowBrowser: true,
-});
+function makeClient() {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY_MISSING');
+  return new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+}
 
 // ─── Open Food Facts ─────────────────────────────────────────────────────────
 
@@ -158,8 +159,8 @@ If you don't recognize the barcode, estimate a generic 100g snack product.`;
   };
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
+    const response = await makeClient().messages.create({
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     });
@@ -196,7 +197,7 @@ If you don't recognize the barcode, estimate a generic 100g snack product.`;
 
 export interface BarcodeLookupResult {
   foodItem: FoodItem;
-  source: 'local' | 'openfoodfacts' | 'ai';
+  source: 'local' | 'openfoodfacts' | 'ai' | 'not_found';
 }
 
 /**
@@ -241,9 +242,20 @@ export async function lookupBarcode(
     return { foodItem: offResult, source: 'openfoodfacts' };
   }
 
-  // 3. Claude AI as last resort
-  const aiResult = await enrichWithClaude(barcode, null, language);
-  return { foodItem: aiResult, source: 'ai' };
+  // 3. Product not found — return placeholder so the UI can ask the user
+  //    to enter the product name manually. Claude cannot reliably identify
+  //    products from barcode numbers alone (it has no barcode database).
+  return {
+    foodItem: {
+      id: generateId(barcode),
+      name: 'Unknown Product',
+      nameRo: 'Produs necunoscut',
+      barcode,
+      serving: { size: 100, unit: 'g' },
+      calories: 0, protein: 0, carbs: 0, fat: 0,
+    },
+    source: 'not_found',
+  };
 }
 
 /**
