@@ -20,7 +20,7 @@
         "com.apple.developer.healthkit.access": []
       },
       "infoPlist": {
-        "NSHealthShareUsageDescription": "FitMaster Pro reads your blood glucose data from Apple Health to display CGM readings, trends, and time-in-range analysis.",
+        "NSHealthShareUsageDescription": "FitMaster Pro reads your step count, distance, calories burned, heart rate, and blood glucose data from Apple Health to display your daily activity and CGM trends.",
         "NSHealthUpdateUsageDescription": "FitMaster Pro does not write data to Apple Health."
       }
     },
@@ -33,7 +33,11 @@
       },
       "package": "com.fitmaster.pro",
       "permissions": [
-        "android.permission.health.READ_BLOOD_GLUCOSE"
+        "android.permission.health.READ_BLOOD_GLUCOSE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_HEART_RATE"
       ]
     },
     "web": {

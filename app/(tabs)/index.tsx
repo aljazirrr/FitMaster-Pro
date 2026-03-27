@@ -610,14 +610,42 @@ interface StepsCardProps {
   steps: number;
   goal: number;
   isSyncing: boolean;
+  hasData: boolean;
+  onConnect: () => void;
   styles: ReturnType<typeof createStyles>;
   t: (key: string, fallback: string, opts?: Record<string, unknown>) => string;
 }
 
-function StepsCard({ steps, goal, isSyncing, styles, t }: StepsCardProps) {
+function StepsCard({ steps, goal, isSyncing, hasData, onConnect, styles, t }: StepsCardProps) {
   const pct = goal > 0 ? Math.min(steps / goal, 1) : 0;
   const km = stepsToKm(steps);
   const kcal = stepsToKcal(steps);
+
+  // Show connect prompt when we've never gotten data
+  if (!hasData && !isSyncing) {
+    return (
+      <View style={styles.card}>
+        <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>👟</Text>
+        <Text style={{ color: '#9CA3AF', textAlign: 'center', fontSize: 14, marginBottom: 16 }}>
+          {t('home.connectHealth', 'Connect Health to track your steps')}
+        </Text>
+        <TouchableOpacity
+          onPress={onConnect}
+          style={{
+            backgroundColor: STEPS_COLOR,
+            borderRadius: 12,
+            paddingVertical: 12,
+            alignItems: 'center',
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+            🔗 {t('home.connectHealthBtn', 'Connect Health / Health Connect')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.card}>
@@ -704,7 +732,9 @@ export default function HomeScreen() {
   const stepsToday = useActivityStore((s) => s.stepsToday);
   const stepsGoal = useActivityStore((s) => s.stepsGoal);
   const isSyncingSteps = useActivityStore((s) => s.isSyncing);
+  const hasStepsData = useActivityStore((s) => s.hasData);
   const syncSteps = useActivityStore((s) => s.syncSteps);
+  const requestPermissionAndSync = useActivityStore((s) => s.requestPermissionAndSync);
 
   // Sync steps once on mount
   useEffect(() => {
@@ -825,6 +855,8 @@ export default function HomeScreen() {
           steps={stepsToday}
           goal={stepsGoal}
           isSyncing={isSyncingSteps}
+          hasData={hasStepsData}
+          onConnect={requestPermissionAndSync}
           styles={styles}
           t={t}
         />

@@ -20,6 +20,7 @@ import { useProgressStore } from '../../../src/stores/useProgressStore';
 import useSettingsStore from '../../../src/stores/useSettingsStore';
 import { achievements } from '../../../src/data/achievements';
 import { useHealthConnect } from '../../../src/hooks/useHealthConnect';
+import { useActivityStore } from '../../../src/stores/useActivityStore';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -441,6 +442,9 @@ export default function ProfileScreen() {
   const { weightEntries, photos, addWeight } = useProgressStore();
   const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync, biometricEnabled, setBiometricEnabled, twoFAEnabled, setTwoFAEnabled } = useSettingsStore();
   const { isConnected: isGlucoseConnected, platformLabel: glucosePlatformLabel, connect: connectGlucose } = useHealthConnect();
+  const hasStepsData = useActivityStore((s) => s.hasData);
+  const stepsToday = useActivityStore((s) => s.stepsToday);
+  const requestPermissionAndSync = useActivityStore((s) => s.requestPermissionAndSync);
 
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
@@ -1127,12 +1131,52 @@ export default function ProfileScreen() {
                 )}
               </TouchableOpacity>
 
+              {/* ── Steps / Activity (live via Health Connect) ── */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={async () => {
+                  if (hasStepsData) return;
+                  const result = await requestPermissionAndSync();
+                  if (result === 'denied') {
+                    Alert.alert(
+                      'Permission Denied',
+                      'Please allow step access in your phone\'s Health Connect app (Settings → Apps → Health Connect → App permissions → FitMaster Pro).',
+                      [{ text: 'OK' }],
+                    );
+                  }
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: spacing.sm,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                  gap: spacing.md,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>👟</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                    Steps & Activity
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {hasStepsData
+                      ? `Connected ✓ — ${stepsToday.toLocaleString()} steps today`
+                      : 'Tap to connect Health Connect / Apple Health'}
+                  </Text>
+                </View>
+                {hasStepsData ? (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success ?? '#22C55E' }} />
+                ) : (
+                  <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+                )}
+              </TouchableOpacity>
+
               {/* ── Other integrations (coming soon) ── */}
               {[
-                { icon: '⌚', label: 'Apple Watch / Wear OS', sub: 'Sync workouts & heart rate' },
-                { icon: '🏃', label: 'Strava', sub: 'Connect running & cycling activity' },
-                { icon: '📿', label: 'Fitbit / Garmin / Whoop', sub: 'Sync fitness bands & rings' },
-                { icon: '🎵', label: 'Pilates & Yoga Apps', sub: 'Import mindfulness minutes' },
+                { icon: '📿', label: 'Fitbit / Garmin / Whoop', sub: 'Coming soon — sync fitness bands' },
+                { icon: '🏃', label: 'Strava', sub: 'Coming soon — running & cycling' },
+                { icon: '⌚', label: 'Apple Watch / Wear OS', sub: 'Coming soon — workouts & heart rate' },
               ].map((item, idx, arr) => (
                 <TouchableOpacity
                   key={item.label}
@@ -1140,7 +1184,7 @@ export default function ProfileScreen() {
                   onPress={() =>
                     Alert.alert(
                       item.label,
-                      'Integration coming soon. Connect your ' + item.label + ' to automatically sync your activity data.',
+                      'Această integrare va fi disponibilă într-o versiune viitoare.',
                       [{ text: 'OK' }],
                     )
                   }
@@ -1151,6 +1195,7 @@ export default function ProfileScreen() {
                     borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
                     borderBottomColor: colors.border,
                     gap: spacing.md,
+                    opacity: 0.5,
                   }}
                 >
                   <Text style={{ fontSize: 24 }}>{item.icon}</Text>
@@ -1162,7 +1207,7 @@ export default function ProfileScreen() {
                       {item.sub}
                     </Text>
                   </View>
-                  <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Soon</Text>
                 </TouchableOpacity>
               ))}
             </View>

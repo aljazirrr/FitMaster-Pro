@@ -37,6 +37,8 @@ interface ActivityState {
 interface ActivityActions {
   setGoal: (goal: number) => void;
   syncSteps: () => Promise<void>;
+  /** Must be called from a button press — requests Health Connect permission then syncs */
+  requestPermissionAndSync: () => Promise<'granted' | 'denied' | 'unavailable'>;
 }
 
 export const useActivityStore = create<ActivityState & ActivityActions>()(
@@ -68,6 +70,28 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
           });
         } catch {
           set({ isSyncing: false });
+        }
+      },
+
+      requestPermissionAndSync: async () => {
+        set({ isSyncing: true });
+        try {
+          const granted = await healthService.requestStepsPermission();
+          if (!granted) {
+            set({ isSyncing: false });
+            return 'denied';
+          }
+          const steps = await healthService.getStepsToday();
+          set({
+            stepsToday: steps,
+            isSyncing: false,
+            lastSyncedAt: new Date().toISOString(),
+            hasData: true,
+          });
+          return 'granted';
+        } catch {
+          set({ isSyncing: false });
+          return 'unavailable';
         }
       },
     }),
