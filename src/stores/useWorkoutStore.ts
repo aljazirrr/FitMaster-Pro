@@ -9,7 +9,7 @@ import type {
   PersonalRecord,
 } from '../types/workout';
 import workoutService from '../services/workoutService';
-import { saveWorkoutSession, fetchWorkoutHistory, savePersonalRecord, fetchPersonalRecords } from '../services/firestoreService';
+import { saveWorkoutSession, fetchWorkoutHistory, savePersonalRecord, fetchPersonalRecords, saveWorkoutPlanToFirestore, deleteWorkoutPlanFromFirestore, fetchSavedWorkoutPlans } from '../services/firestoreService';
 
 interface WorkoutState {
   activeWorkout: WorkoutSession | null;
@@ -136,15 +136,20 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
 
       cancelWorkout: () => set({ activeWorkout: null }),
 
-      saveGeneratedPlan: (plan) =>
+      saveGeneratedPlan: (plan) => {
         set((state) => ({
           savedPlans: [plan, ...state.savedPlans.filter((p) => p.id !== plan.id)],
-        })),
+        }));
+        // Sync to Firestore (fire-and-forget)
+        saveWorkoutPlanToFirestore(plan).catch(() => {});
+      },
 
-      removeGeneratedPlan: (planId) =>
+      removeGeneratedPlan: (planId) => {
         set((state) => ({
           savedPlans: state.savedPlans.filter((p) => p.id !== planId),
-        })),
+        }));
+        deleteWorkoutPlanFromFirestore(planId).catch(() => {});
+      },
 
       addPersonalRecord: (record) =>
         set((state) => ({
@@ -237,6 +242,13 @@ export const useWorkoutStore = create<WorkoutState & WorkoutActions>()(
     {
       name: 'fitmaster-workouts',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        savedPlans: state.savedPlans,
+        workoutHistory: state.workoutHistory,
+        personalRecords: state.personalRecords,
+        totalWorkouts: state.totalWorkouts,
+        weeklyWorkouts: state.weeklyWorkouts,
+      }),
     },
   ),
 );

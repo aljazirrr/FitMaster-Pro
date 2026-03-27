@@ -16,6 +16,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -144,7 +145,11 @@ export default function GeneratePlanScreen() {
   function handleSave() {
     if (!generatedPlan) return;
     saveGeneratedPlan(generatedPlan);
-    router.back();
+    Alert.alert(
+      '✅ Plan salvat!',
+      `"${generatedPlan.name}" a fost adăugat în biblioteca ta de planuri.`,
+      [{ text: 'OK', onPress: () => router.back() }],
+    );
   }
 
   // ─── Styles (theme-driven) ────────────────────────────────────────────────

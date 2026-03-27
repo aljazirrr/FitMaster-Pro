@@ -28,7 +28,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { auth, db, storage, COLLECTIONS, isFirebaseConfigured } from './firebase';
-import type { WorkoutSession, PersonalRecord } from '../types/workout';
+import type { WorkoutSession, PersonalRecord, WorkoutPlan } from '../types/workout';
 import type { AIMealPlan } from './aiMealPlanService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -200,6 +200,27 @@ export async function fetchMealPlans(): Promise<AIMealPlan[]> {
   return snap.docs.map((d) => cleanDoc<AIMealPlan>(d.data()));
 }
 
+// ─── AI Workout Plans ─────────────────────────────────────────────────────────
+
+export async function saveWorkoutPlanToFirestore(plan: WorkoutPlan): Promise<void> {
+  if (!isConfigured()) return;
+  await setDoc(doc(db, COLLECTIONS.savedPlans(uid()), plan.id), {
+    ...plan,
+    syncedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteWorkoutPlanFromFirestore(planId: string): Promise<void> {
+  if (!isConfigured()) return;
+  await deleteDoc(doc(db, COLLECTIONS.savedPlans(uid()), planId));
+}
+
+export async function fetchSavedWorkoutPlans(): Promise<WorkoutPlan[]> {
+  if (!isConfigured()) return [];
+  const snap = await getDocs(colRef(COLLECTIONS.savedPlans(uid())));
+  return snap.docs.map((d) => cleanDoc<WorkoutPlan>(d.data()));
+}
+
 export const firestoreService = {
   isConfigured,
   saveWorkoutSession,
@@ -216,6 +237,9 @@ export const firestoreService = {
   fetchPhotos,
   saveMealPlanToFirestore,
   fetchMealPlans,
+  saveWorkoutPlanToFirestore,
+  deleteWorkoutPlanFromFirestore,
+  fetchSavedWorkoutPlans,
 };
 
 export default firestoreService;

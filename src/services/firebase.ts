@@ -92,4 +92,5 @@ export const COLLECTIONS = {
   measurements: (uid: string) => `users/${uid}/measurements`,
   photos:       (uid: string) => `users/${uid}/photos`,
   mealPlans:    (uid: string) => `users/${uid}/meal_plans`,
+  savedPlans:   (uid: string) => `users/${uid}/saved_plans`,
 } as const;

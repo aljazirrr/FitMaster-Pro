@@ -273,6 +273,7 @@ export const useNutritionStore = create<NutritionState & NutritionActions>()(
         dailyLog: state.dailyLog,
         shoppingList: state.shoppingList,
         savedMealPlans: state.savedMealPlans,
+        customFoods: state.customFoods,
       }),
     },
   ),
