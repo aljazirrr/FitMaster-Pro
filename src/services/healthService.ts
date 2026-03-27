@@ -207,10 +207,12 @@ async function iosGetGlucoseReadings(
 
 async function androidCheckAvailable(): Promise<boolean> {
   const HC = loadHealthConnect();
-  if (!HC) return false;
+  if (!HC || typeof HC.getSdkStatus !== 'function') return false;
   try {
     const status = await HC.getSdkStatus();
-    return status === HC.SdkAvailabilityStatus?.SDK_AVAILABLE;
+    // SDK_AVAILABLE = 3 numerically; guard against undefined SdkAvailabilityStatus
+    const sdkAvailable = HC.SdkAvailabilityStatus?.SDK_AVAILABLE ?? 3;
+    return status === sdkAvailable;
   } catch {
     return false;
   }
@@ -362,23 +364,38 @@ export const healthService = {
       });
     }
     if (Platform.OS === 'android') {
-      const HC = loadHealthConnect();
-      if (!HC) return false;
+      let HC: any;
       try {
-        // Check availability before doing anything — avoids native crash when
-        // Health Connect is not installed (Android 9–13 without the HC app).
+        // Re-require inside try so any native-bridge errors are caught immediately
+        HC = require('react-native-health-connect');
+      } catch {
+        return false;
+      }
+      if (!HC) return false;
+
+      // Guard: make sure every method we need actually exists before calling
+      if (
+        typeof HC.getSdkStatus !== 'function' ||
+        typeof HC.initialize !== 'function' ||
+        typeof HC.requestPermission !== 'function'
+      ) {
+        return false;
+      }
+
+      try {
+        // Check availability — avoids native crash when Health Connect is not installed
         const status = await HC.getSdkStatus();
-        const isAvailable =
-          status === HC.SdkAvailabilityStatus?.SDK_AVAILABLE ||
-          status === 3; // SDK_AVAILABLE numeric fallback
-        if (!isAvailable) return false;
+        const sdkAvailable = HC.SdkAvailabilityStatus?.SDK_AVAILABLE ?? 3;
+        if (status !== sdkAvailable) return false;
 
         await HC.initialize();
         const granted: any[] = await HC.requestPermission([
           { accessType: 'read', recordType: 'Steps' },
         ]);
-        return Array.isArray(granted) &&
-          granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
+        return (
+          Array.isArray(granted) &&
+          granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read')
+        );
       } catch {
         return false;
       }

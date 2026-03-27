@@ -858,7 +858,12 @@ export default function HomeScreen() {
           isSyncing={isSyncingSteps}
           hasData={stepsPermissionGranted}
           onConnect={async () => {
-            const result = await requestPermissionAndSync();
+            let result: Awaited<ReturnType<typeof requestPermissionAndSync>>;
+            try {
+              result = await requestPermissionAndSync();
+            } catch {
+              result = 'unavailable';
+            }
             if (result === 'not_installed') {
               Alert.alert(
                 'Health Connect indisponibil',

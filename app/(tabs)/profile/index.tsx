@@ -1136,7 +1136,12 @@ export default function ProfileScreen() {
                 activeOpacity={0.7}
                 onPress={async () => {
                   if (stepsPermissionGranted) return;
-                  const result = await requestPermissionAndSync();
+                  let result: Awaited<ReturnType<typeof requestPermissionAndSync>>;
+                  try {
+                    result = await requestPermissionAndSync();
+                  } catch {
+                    result = 'unavailable';
+                  }
                   if (result === 'not_installed') {
                     Alert.alert(
                       'Health Connect indisponibil',
