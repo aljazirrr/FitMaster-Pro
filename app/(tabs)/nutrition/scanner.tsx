@@ -30,8 +30,14 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../src/theme';
 import { useNutritionStore } from '../../../src/stores/useNutritionStore';
 import useSettingsStore from '../../../src/stores/useSettingsStore';
-import { isValidBarcode, lookupBarcodeWithAI } from '../../../src/services/barcodeScannerService';
+import { isValidBarcode, lookupBarcodeWithAI, analyzeIngredients } from '../../../src/services/barcodeScannerService';
 import { estimateFoodMacros } from '../../../src/services/aiFoodService';
+import {
+  SEVERITY_COLORS,
+  SEVERITY_LABEL,
+  CATEGORY_EMOJI,
+  type HarmfulIngredient,
+} from '../../../src/data/harmfulIngredients';
 import type { MealType } from '../../../src/types/nutrition';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -59,6 +65,7 @@ export default function BarcodeScannerScreen() {
   const [isAIOverriding, setIsAIOverriding] = useState(false);
   const [manualName, setManualName] = useState('');
   const [isIdentifying, setIsIdentifying] = useState(false);
+  const [showIngredients, setShowIngredients] = useState(false);
   const cooldownRef = useRef(false);
 
   // Clear stale results on mount
@@ -93,6 +100,7 @@ export default function BarcodeScannerScreen() {
     setIsScanning(true);
     setIsAIOverriding(false);
     setManualName('');
+    setShowIngredients(false);
   };
 
   const handleIdentifyByName = async () => {
@@ -314,6 +322,16 @@ export default function BarcodeScannerScreen() {
                 </View>
               )}
 
+              {/* ── Harmful Ingredients Analysis ─────────────────────────── */}
+              <IngredientWarnings
+                harmful={scannedFood.harmfulIngredients}
+                ingredientsText={scannedFood.ingredientsText}
+                showIngredients={showIngredients}
+                onToggleIngredients={() => setShowIngredients((v) => !v)}
+                language={language}
+                styles={styles}
+              />
+
               {/* Servings stepper */}
               <View style={styles.servingsRow}>
                 <Text style={styles.servingsLabel}>
@@ -449,6 +467,105 @@ function sourceBadgeColor(source: 'local' | 'openfoodfacts' | 'ai', theme: any) 
   if (source === 'local') return { backgroundColor: '#4CAF50' };
   if (source === 'openfoodfacts') return { backgroundColor: '#2196F3' };
   return { backgroundColor: theme.colors.primary };
+}
+
+// ─── IngredientWarnings ───────────────────────────────────────────────────────
+
+interface IngredientWarningsProps {
+  harmful?: HarmfulIngredient[];
+  ingredientsText?: string;
+  showIngredients: boolean;
+  onToggleIngredients: () => void;
+  language: string;
+  styles: ReturnType<typeof useStyles>;
+}
+
+function IngredientWarnings({
+  harmful,
+  ingredientsText,
+  showIngredients,
+  onToggleIngredients,
+  language,
+  styles,
+}: IngredientWarningsProps) {
+  const isRo = language === 'ro';
+
+  // No ingredients data at all
+  if (!ingredientsText && (!harmful || harmful.length === 0)) return null;
+
+  const hasHarmful = harmful && harmful.length > 0;
+
+  return (
+    <View style={styles.ingredientSection}>
+      {/* Section header */}
+      <View style={styles.ingredientHeader}>
+        <Text style={styles.ingredientTitle}>
+          {isRo ? '🔬 Analiză ingrediente' : '🔬 Ingredient Analysis'}
+        </Text>
+        {ingredientsText ? (
+          <TouchableOpacity onPress={onToggleIngredients} style={styles.toggleBtn}>
+            <Text style={styles.toggleBtnText}>
+              {showIngredients
+                ? (isRo ? 'Ascunde ▲' : 'Hide ▲')
+                : (isRo ? 'Lista completă ▼' : 'Full list ▼')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* All-clear badge */}
+      {!hasHarmful && (
+        <View style={styles.allClearBadge}>
+          <Text style={styles.allClearText}>
+            ✅ {isRo ? 'Niciun ingredient problematic detectat' : 'No concerning ingredients detected'}
+          </Text>
+        </View>
+      )}
+
+      {/* Warning rows */}
+      {hasHarmful && harmful.map((item) => {
+        const colors = SEVERITY_COLORS[item.severity];
+        return (
+          <View
+            key={item.id}
+            style={[styles.warningRow, { backgroundColor: colors.bg, borderColor: colors.border }]}
+          >
+            <View style={styles.warningLeft}>
+              <Text style={styles.warningEmoji}>{CATEGORY_EMOJI[item.category]}</Text>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text style={[styles.warningName, { color: colors.text }]}>
+                    {isRo ? item.label.ro : item.label.en}
+                  </Text>
+                  {item.eNumber && (
+                    <Text style={[styles.eNumber, { color: colors.text, borderColor: colors.border }]}>
+                      {item.eNumber}
+                    </Text>
+                  )}
+                  <Text style={[styles.severityBadge, { backgroundColor: colors.border }]}>
+                    {isRo ? SEVERITY_LABEL[item.severity].ro : SEVERITY_LABEL[item.severity].en}
+                  </Text>
+                </View>
+                <Text style={styles.warningReason}>
+                  {isRo ? item.reason.ro : item.reason.en}
+                </Text>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+
+      {/* Full ingredients list (collapsible) */}
+      {showIngredients && ingredientsText && (
+        <View style={styles.ingredientsTextBox}>
+          <Text style={styles.ingredientsTextLabel}>
+            {isRo ? 'Ingrediente:' : 'Ingredients:'}
+          </Text>
+          <Text style={styles.ingredientsTextContent}>{ingredientsText}</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
 // ─── MacroChip ────────────────────────────────────────────────────────────────
@@ -660,6 +777,101 @@ function useStyles(theme: any) {
       alignItems: 'center',
     },
     addBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+    // Ingredient analysis section
+    ingredientSection: {
+      gap: 8,
+    },
+    ingredientHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    ingredientTitle: {
+      color: theme.colors.text,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    toggleBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 10,
+      backgroundColor: theme.colors.background,
+    },
+    toggleBtnText: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    allClearBadge: {
+      backgroundColor: '#22C55E22',
+      borderWidth: 1,
+      borderColor: '#22C55E',
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    allClearText: {
+      color: '#22C55E',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    warningRow: {
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 10,
+    },
+    warningLeft: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'flex-start',
+    },
+    warningEmoji: {
+      fontSize: 20,
+      marginTop: 1,
+    },
+    warningName: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    eNumber: {
+      fontSize: 11,
+      fontWeight: '600',
+      borderWidth: 1,
+      borderRadius: 6,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    severityBadge: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#fff',
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    warningReason: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      lineHeight: 16,
+      marginTop: 3,
+    },
+    ingredientsTextBox: {
+      backgroundColor: theme.colors.background,
+      borderRadius: 10,
+      padding: 10,
+      gap: 4,
+    },
+    ingredientsTextLabel: {
+      color: theme.colors.text,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    ingredientsTextContent: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      lineHeight: 16,
+    },
 
     // AI warning
     aiWarning: {

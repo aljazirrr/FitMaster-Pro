@@ -9,6 +9,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { foods } from '../data/foods';
+import { HARMFUL_INGREDIENTS, type HarmfulIngredient } from '../data/harmfulIngredients';
 import type { FoodItem } from '../types/nutrition';
 
 function makeClient() {
@@ -24,6 +25,8 @@ const OFF_BASE = 'https://world.openfoodfacts.org/api/v0/product';
 interface OFFProduct {
   product_name?: string;
   brands?: string;
+  ingredients_text?: string;
+  ingredients_text_en?: string;
   nutriments?: {
     'energy-kcal_100g'?: number;
     'energy-kcal_serving'?: number;
@@ -36,6 +39,31 @@ interface OFFProduct {
   };
   serving_size?: string;
   serving_quantity?: number;
+}
+
+// ─── Ingredient Analysis ──────────────────────────────────────────────────────
+
+/**
+ * Analyzes a raw ingredients string and returns matching harmful ingredient entries.
+ * Deduplicates results and sorts by severity (high → medium → low).
+ */
+export function analyzeIngredients(ingredientsText: string): HarmfulIngredient[] {
+  if (!ingredientsText) return [];
+  const lower = ingredientsText.toLowerCase();
+  const found = new Map<string, HarmfulIngredient>();
+
+  for (const ingredient of HARMFUL_INGREDIENTS) {
+    if (found.has(ingredient.id)) continue;
+    for (const name of ingredient.names) {
+      if (lower.includes(name)) {
+        found.set(ingredient.id, ingredient);
+        break;
+      }
+    }
+  }
+
+  const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  return Array.from(found.values()).sort((a, b) => order[a.severity] - order[b.severity]);
 }
 
 interface OFFResponse {
@@ -88,13 +116,15 @@ function offProductToFoodItem(barcode: string, product: OFFProduct): FoodItem | 
   };
 }
 
-async function fetchFromOpenFoodFacts(barcode: string): Promise<FoodItem | null> {
+async function fetchFromOpenFoodFactsRaw(
+  barcode: string,
+): Promise<{ product: OFFProduct } | null> {
   try {
     const res = await fetch(`${OFF_BASE}/${barcode}.json`);
     if (!res.ok) return null;
     const data: OFFResponse = await res.json();
     if (data.status !== 1 || !data.product) return null;
-    return offProductToFoodItem(barcode, data.product);
+    return { product: data.product };
   } catch {
     return null;
   }
@@ -198,6 +228,10 @@ If you don't recognize the barcode, estimate a generic 100g snack product.`;
 export interface BarcodeLookupResult {
   foodItem: FoodItem;
   source: 'local' | 'openfoodfacts' | 'ai' | 'not_found';
+  /** Raw ingredients string from Open Food Facts (if available) */
+  ingredientsText?: string;
+  /** Detected harmful ingredients (sorted by severity) */
+  harmfulIngredients?: HarmfulIngredient[];
 }
 
 /**
@@ -213,33 +247,46 @@ export async function lookupBarcode(
   if (localMatch) return { foodItem: localMatch, source: 'local' };
 
   // 2. Open Food Facts (free public API)
-  const offResult = await fetchFromOpenFoodFacts(barcode);
-  if (offResult) {
-    // Enrich with Claude: translate to Romanian AND verify the product name
-    // (OFH sometimes has wrong products for regional barcodes)
-    try {
-      const enriched = await enrichWithClaude(barcode, offResult, language);
-      offResult.nameRo = enriched.nameRo;
-      // If Claude returned a significantly different name, trust Claude's version
-      // (handles the case where OFH has wrong product for a Romanian barcode)
-      if (
-        enriched.name &&
-        enriched.name !== 'Unknown Product' &&
-        enriched.name.toLowerCase() !== offResult.name.toLowerCase()
-      ) {
-        offResult.name = enriched.name;
-        offResult.calories = enriched.calories;
-        offResult.protein = enriched.protein;
-        offResult.carbs = enriched.carbs;
-        offResult.fat = enriched.fat;
-        if (enriched.fiber != null) offResult.fiber = enriched.fiber;
-        if (enriched.sugar != null) offResult.sugar = enriched.sugar;
-        if (enriched.sodium != null) offResult.sodium = enriched.sodium;
+  const offFetch = await fetchFromOpenFoodFactsRaw(barcode);
+  if (offFetch) {
+    const offResult = offProductToFoodItem(barcode, offFetch.product);
+    if (offResult) {
+      // Enrich with Claude: translate to Romanian AND verify product name
+      try {
+        const enriched = await enrichWithClaude(barcode, offResult, language);
+        offResult.nameRo = enriched.nameRo;
+        if (
+          enriched.name &&
+          enriched.name !== 'Unknown Product' &&
+          enriched.name.toLowerCase() !== offResult.name.toLowerCase()
+        ) {
+          offResult.name = enriched.name;
+          offResult.calories = enriched.calories;
+          offResult.protein = enriched.protein;
+          offResult.carbs = enriched.carbs;
+          offResult.fat = enriched.fat;
+          if (enriched.fiber != null) offResult.fiber = enriched.fiber;
+          if (enriched.sugar != null) offResult.sugar = enriched.sugar;
+          if (enriched.sodium != null) offResult.sodium = enriched.sodium;
+        }
+      } catch {
+        // keep original OFH data
       }
-    } catch {
-      // keep original OFH data
+
+      // Analyze ingredients for harmful compounds
+      const rawIngredients =
+        offFetch.product.ingredients_text_en ||
+        offFetch.product.ingredients_text ||
+        '';
+      const harmful = analyzeIngredients(rawIngredients);
+
+      return {
+        foodItem: offResult,
+        source: 'openfoodfacts',
+        ingredientsText: rawIngredients || undefined,
+        harmfulIngredients: harmful.length > 0 ? harmful : undefined,
+      };
     }
-    return { foodItem: offResult, source: 'openfoodfacts' };
   }
 
   // 3. Product not found — return placeholder so the UI can ask the user
