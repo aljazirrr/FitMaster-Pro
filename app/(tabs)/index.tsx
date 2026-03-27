@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -856,7 +857,22 @@ export default function HomeScreen() {
           goal={stepsGoal}
           isSyncing={isSyncingSteps}
           hasData={stepsPermissionGranted}
-          onConnect={requestPermissionAndSync}
+          onConnect={async () => {
+            const result = await requestPermissionAndSync();
+            if (result === 'not_installed') {
+              Alert.alert(
+                'Health Connect indisponibil',
+                'Android 14+: Health Connect e inclus în sistem.\nAndroid 13 și mai vechi: instalează "Health Connect" din Play Store, apoi încearcă din nou.',
+                [{ text: 'OK' }],
+              );
+            } else if (result === 'denied') {
+              Alert.alert(
+                'Permisiune refuzată',
+                'Mergi la Setări → Aplicații → Health Connect → Permisiuni → FitMaster Pro și permite accesul la Pași.',
+                [{ text: 'OK' }],
+              );
+            }
+          }}
           styles={styles}
           t={t}
         />

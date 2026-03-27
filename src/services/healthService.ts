@@ -345,7 +345,8 @@ export const healthService = {
     return 'unavailable';
   },
 
-  /** Request only step count permission (for activity tracking without CGM) */
+  /** Request only step count permission (for activity tracking without CGM).
+   *  MUST be called from a user interaction (button press) on Android. */
   async requestStepsPermission(): Promise<boolean> {
     if (Platform.OS === 'ios') {
       const HK = loadHealthKit();
@@ -364,11 +365,20 @@ export const healthService = {
       const HC = loadHealthConnect();
       if (!HC) return false;
       try {
+        // Check availability before doing anything — avoids native crash when
+        // Health Connect is not installed (Android 9–13 without the HC app).
+        const status = await HC.getSdkStatus();
+        const isAvailable =
+          status === HC.SdkAvailabilityStatus?.SDK_AVAILABLE ||
+          status === 3; // SDK_AVAILABLE numeric fallback
+        if (!isAvailable) return false;
+
         await HC.initialize();
         const granted: any[] = await HC.requestPermission([
           { accessType: 'read', recordType: 'Steps' },
         ]);
-        return granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
+        return Array.isArray(granted) &&
+          granted.some((p) => p.recordType === 'Steps' && p.accessType === 'read');
       } catch {
         return false;
       }

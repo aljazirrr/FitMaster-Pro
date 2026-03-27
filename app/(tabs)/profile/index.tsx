@@ -1137,10 +1137,22 @@ export default function ProfileScreen() {
                 onPress={async () => {
                   if (stepsPermissionGranted) return;
                   const result = await requestPermissionAndSync();
-                  if (result === 'denied') {
+                  if (result === 'not_installed') {
                     Alert.alert(
-                      'Permission Denied',
-                      'Please allow step access in your phone\'s Health Connect app (Settings → Apps → Health Connect → App permissions → FitMaster Pro).',
+                      'Health Connect indisponibil',
+                      'Health Connect nu este instalat pe acest telefon.\n\nAndroid 14+: este inclus în sistem.\nAndroid 13 și mai vechi: caută "Health Connect" în Play Store și instalează-l, apoi încearcă din nou.',
+                      [{ text: 'OK' }],
+                    );
+                  } else if (result === 'denied') {
+                    Alert.alert(
+                      'Permisiune refuzată',
+                      'Permite accesul la pași din Health Connect:\nSetări → Aplicații → Health Connect → Permisiuni aplicație → FitMaster Pro → Pași (Citire)',
+                      [{ text: 'OK' }],
+                    );
+                  } else if (result === 'unavailable') {
+                    Alert.alert(
+                      'Eroare',
+                      'Nu s-a putut conecta la Health Connect. Asigură-te că ai făcut rebuild după ultimele modificări (npx expo run:android).',
                       [{ text: 'OK' }],
                     );
                   }
