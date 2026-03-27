@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking, Platform } from 'react-native';
 import healthService from '../services/healthService';
 
 // ─── Derived helpers ──────────────────────────────────────────────────────────
@@ -39,8 +40,13 @@ interface ActivityState {
 interface ActivityActions {
   setGoal: (goal: number) => void;
   syncSteps: () => Promise<void>;
-  /** Must be called from a button press — requests Health Connect permission then syncs */
-  requestPermissionAndSync: () => Promise<'granted' | 'denied' | 'unavailable' | 'not_installed'>;
+  /**
+   * Must be called from a button press.
+   * On Android: opens Health Connect via Linking (avoids native crash from requestPermission),
+   * then tries to silently read steps to detect if permission was already granted.
+   * On iOS: requests HealthKit permission normally.
+   */
+  requestPermissionAndSync: () => Promise<'granted' | 'denied' | 'unavailable' | 'not_installed' | 'opened_hc'>;
 }
 
 export const useActivityStore = create<ActivityState & ActivityActions>()(
@@ -81,7 +87,49 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       requestPermissionAndSync: async () => {
         set({ isSyncing: true });
         try {
-          // Check if native module loaded at all
+          if (Platform.OS === 'android') {
+            // ─── Android: NEVER call requestPermission() natively — it crashes ───
+            // Instead:
+            //   1. Try to silently read steps (works if permission was already granted)
+            //   2. If reading succeeds → mark as connected
+            //   3. If reading fails → open Health Connect app via Linking so the
+            //      user can grant permissions there, then return here and tap again.
+            let steps = 0;
+            let readOk = false;
+            try {
+              steps = await healthService.getStepsToday();
+              readOk = true;
+            } catch {
+              readOk = false;
+            }
+
+            if (readOk) {
+              set({
+                stepsToday: steps,
+                isSyncing: false,
+                lastSyncedAt: new Date().toISOString(),
+                permissionGranted: true,
+                hasData: true,
+              });
+              return 'granted';
+            }
+
+            // Permission not yet granted — open Health Connect so user can allow it
+            set({ isSyncing: false });
+            try {
+              const hcUrl = 'healthconnect://';
+              const canOpen = await Linking.canOpenURL(hcUrl);
+              if (canOpen) {
+                await Linking.openURL(hcUrl);
+                return 'opened_hc';
+              }
+            } catch {
+              // Linking failed — HC not installed
+            }
+            return 'not_installed';
+          }
+
+          // ─── iOS: standard HealthKit permission request (doesn't crash) ───
           const available = await healthService.isAvailable();
           if (!available) {
             set({ isSyncing: false });

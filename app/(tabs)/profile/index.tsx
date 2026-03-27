@@ -1142,7 +1142,13 @@ export default function ProfileScreen() {
                   } catch {
                     result = 'unavailable';
                   }
-                  if (result === 'not_installed') {
+                  if (result === 'opened_hc') {
+                    Alert.alert(
+                      'Health Connect deschis',
+                      'Acordă permisiunea pentru Pași în Health Connect, revino în aplicație și apasă din nou "Steps & Activity".',
+                      [{ text: 'OK' }],
+                    );
+                  } else if (result === 'not_installed') {
                     Alert.alert(
                       'Health Connect indisponibil',
                       'Health Connect nu este instalat pe acest telefon.\n\nAndroid 14+: este inclus în sistem.\nAndroid 13 și mai vechi: caută "Health Connect" în Play Store și instalează-l, apoi încearcă din nou.',
@@ -1157,7 +1163,7 @@ export default function ProfileScreen() {
                   } else if (result === 'unavailable') {
                     Alert.alert(
                       'Eroare',
-                      'Nu s-a putut conecta la Health Connect. Asigură-te că ai făcut rebuild după ultimele modificări (npx expo run:android).',
+                      'Nu s-a putut conecta la Health Connect.',
                       [{ text: 'OK' }],
                     );
                   }

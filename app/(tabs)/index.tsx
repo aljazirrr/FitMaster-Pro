@@ -864,7 +864,13 @@ export default function HomeScreen() {
             } catch {
               result = 'unavailable';
             }
-            if (result === 'not_installed') {
+            if (result === 'opened_hc') {
+              Alert.alert(
+                'Health Connect deschis',
+                'Acordă permisiunea pentru Pași în Health Connect, apoi revino și apasă din nou butonul "Connect Health".',
+                [{ text: 'OK' }],
+              );
+            } else if (result === 'not_installed') {
               Alert.alert(
                 'Health Connect indisponibil',
                 'Android 14+: Health Connect e inclus în sistem.\nAndroid 13 și mai vechi: instalează "Health Connect" din Play Store, apoi încearcă din nou.',
