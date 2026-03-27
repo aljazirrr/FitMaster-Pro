@@ -307,27 +307,25 @@ async function iosGetStepsToday(): Promise<number> {
 
 async function androidGetStepsToday(): Promise<number> {
   const HC = loadHealthConnect();
-  if (!HC) return 0;
+  // Let exceptions propagate — callers decide whether to treat them as
+  // "permission denied" (syncSteps) or silently ignore (other places).
+  if (!HC) throw new Error('HC module unavailable');
 
-  try {
-    await HC.initialize();
-    const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+  await HC.initialize();
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
 
-    const result = await HC.readRecords('Steps', {
-      timeRangeFilter: {
-        operator: 'between',
-        startTime: startOfDay.toISOString(),
-        endTime: now.toISOString(),
-      },
-    });
+  const result = await HC.readRecords('Steps', {
+    timeRangeFilter: {
+      operator: 'between',
+      startTime: startOfDay.toISOString(),
+      endTime: now.toISOString(),
+    },
+  });
 
-    const records: any[] = result?.records ?? result ?? [];
-    return records.reduce((sum: number, r: any) => sum + (r.count ?? 0), 0);
-  } catch {
-    return 0;
-  }
+  const records: any[] = result?.records ?? result ?? [];
+  return records.reduce((sum: number, r: any) => sum + (r.count ?? 0), 0);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

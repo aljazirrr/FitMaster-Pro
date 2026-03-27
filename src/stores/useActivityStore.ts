@@ -65,82 +65,14 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       setGoal: (goal) => set({ stepsGoal: Math.max(1, goal) }),
 
       syncSteps: async () => {
-        // Only sync silently if permission was already granted — don't set
-        // permissionGranted or hasData here, those come from requestPermissionAndSync.
         set({ isSyncing: true });
         try {
           const steps = await healthService.getStepsToday();
-          // Only update stepsToday — don't touch permissionGranted/hasData
-          // (those are set only after an explicit user permission grant)
-          set((s) => ({
-            stepsToday: steps,
-            isSyncing: false,
-            lastSyncedAt: new Date().toISOString(),
-            // Keep hasData true if it was already true; don't flip to true here
-            hasData: s.hasData,
-          }));
-        } catch {
-          set({ isSyncing: false });
-        }
-      },
-
-      requestPermissionAndSync: async () => {
-        set({ isSyncing: true });
-        try {
-          if (Platform.OS === 'android') {
-            // ─── Android: NEVER call requestPermission() natively — it crashes ───
-            // Instead:
-            //   1. Try to silently read steps (works if permission was already granted)
-            //   2. If reading succeeds → mark as connected
-            //   3. If reading fails → open Health Connect app via Linking so the
-            //      user can grant permissions there, then return here and tap again.
-            let steps = 0;
-            let readOk = false;
-            try {
-              steps = await healthService.getStepsToday();
-              readOk = true;
-            } catch {
-              readOk = false;
-            }
-
-            if (readOk) {
-              set({
-                stepsToday: steps,
-                isSyncing: false,
-                lastSyncedAt: new Date().toISOString(),
-                permissionGranted: true,
-                hasData: true,
-              });
-              return 'granted';
-            }
-
-            // Permission not yet granted — open Health Connect so user can allow it
-            set({ isSyncing: false });
-            try {
-              const hcUrl = 'healthconnect://';
-              const canOpen = await Linking.canOpenURL(hcUrl);
-              if (canOpen) {
-                await Linking.openURL(hcUrl);
-                return 'opened_hc';
-              }
-            } catch {
-              // Linking failed — HC not installed
-            }
-            return 'not_installed';
-          }
-
-          // ─── iOS: standard HealthKit permission request (doesn't crash) ───
-          const available = await healthService.isAvailable();
-          if (!available) {
-            set({ isSyncing: false });
-            return 'not_installed';
-          }
-          const granted = await healthService.requestStepsPermission();
-          if (!granted) {
-            set({ isSyncing: false });
-            return 'denied';
-          }
-          const steps = await healthService.getStepsToday();
+          // getStepsToday returns 0 silently when permission is denied.
+          // We cannot distinguish 0-steps-with-permission from 0-steps-without.
+          // Best proxy: if we got here without an exception from the HC module
+          // itself, treat it as a successful read and mark permission as granted.
+          // This auto-detects permission after the user grants it in HC app.
           set({
             stepsToday: steps,
             isSyncing: false,
@@ -148,6 +80,41 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
             permissionGranted: true,
             hasData: true,
           });
+        } catch {
+          // HC threw — permission not granted yet or module unavailable
+          set({ isSyncing: false });
+        }
+      },
+
+      requestPermissionAndSync: async () => {
+        // ── Android ─────────────────────────────────────────────────────────
+        // HC.requestPermission() crashes the Android Activity in builds that
+        // pre-date the manifest regeneration. We do ZERO native HC calls here.
+        // Instead: open Health Connect via Linking so the user can grant the
+        // permission there.  syncSteps() (called on mount / pull-to-refresh)
+        // will automatically detect the granted permission next time.
+        if (Platform.OS === 'android') {
+          try {
+            const canOpen = await Linking.canOpenURL('healthconnect://');
+            if (canOpen) {
+              await Linking.openURL('healthconnect://');
+              return 'opened_hc';
+            }
+          } catch {
+            // ignore
+          }
+          return 'not_installed';
+        }
+
+        // ── iOS ─────────────────────────────────────────────────────────────
+        set({ isSyncing: true });
+        try {
+          const available = await healthService.isAvailable();
+          if (!available) { set({ isSyncing: false }); return 'not_installed'; }
+          const granted = await healthService.requestStepsPermission();
+          if (!granted) { set({ isSyncing: false }); return 'denied'; }
+          const steps = await healthService.getStepsToday();
+          set({ stepsToday: steps, isSyncing: false, lastSyncedAt: new Date().toISOString(), permissionGranted: true, hasData: true });
           return 'granted';
         } catch {
           set({ isSyncing: false });
