@@ -732,7 +732,7 @@ export default function HomeScreen() {
   const stepsToday = useActivityStore((s) => s.stepsToday);
   const stepsGoal = useActivityStore((s) => s.stepsGoal);
   const isSyncingSteps = useActivityStore((s) => s.isSyncing);
-  const hasStepsData = useActivityStore((s) => s.hasData);
+  const stepsPermissionGranted = useActivityStore((s) => s.permissionGranted);
   const syncSteps = useActivityStore((s) => s.syncSteps);
   const requestPermissionAndSync = useActivityStore((s) => s.requestPermissionAndSync);
 
@@ -855,7 +855,7 @@ export default function HomeScreen() {
           steps={stepsToday}
           goal={stepsGoal}
           isSyncing={isSyncingSteps}
-          hasData={hasStepsData}
+          hasData={stepsPermissionGranted}
           onConnect={requestPermissionAndSync}
           styles={styles}
           t={t}

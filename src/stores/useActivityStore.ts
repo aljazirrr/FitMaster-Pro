@@ -30,6 +30,8 @@ interface ActivityState {
   stepsGoal: number;
   isSyncing: boolean;
   lastSyncedAt: string | null;
+  /** True once Health Connect permission was explicitly granted by the user */
+  permissionGranted: boolean;
   /** True once the first successful sync has completed */
   hasData: boolean;
 }
@@ -49,6 +51,7 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       stepsGoal: 10_000,
       isSyncing: false,
       lastSyncedAt: null,
+      permissionGranted: false,
       hasData: false,
 
       // ── Actions ──────────────────────────────────────────────────────────
@@ -56,18 +59,20 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
       setGoal: (goal) => set({ stepsGoal: Math.max(1, goal) }),
 
       syncSteps: async () => {
+        // Only sync silently if permission was already granted — don't set
+        // permissionGranted or hasData here, those come from requestPermissionAndSync.
         set({ isSyncing: true });
         try {
-          // Just read steps — permission must be requested via explicit user action,
-          // not automatically on mount (Android Health Connect crashes if the
-          // Activity Result launcher hasn't been initialized yet).
           const steps = await healthService.getStepsToday();
-          set({
+          // Only update stepsToday — don't touch permissionGranted/hasData
+          // (those are set only after an explicit user permission grant)
+          set((s) => ({
             stepsToday: steps,
             isSyncing: false,
             lastSyncedAt: new Date().toISOString(),
-            hasData: true,
-          });
+            // Keep hasData true if it was already true; don't flip to true here
+            hasData: s.hasData,
+          }));
         } catch {
           set({ isSyncing: false });
         }
@@ -86,6 +91,7 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
             stepsToday: steps,
             isSyncing: false,
             lastSyncedAt: new Date().toISOString(),
+            permissionGranted: true,
             hasData: true,
           });
           return 'granted';
@@ -103,6 +109,7 @@ export const useActivityStore = create<ActivityState & ActivityActions>()(
         stepsToday: s.stepsToday,
         stepsGoal: s.stepsGoal,
         lastSyncedAt: s.lastSyncedAt,
+        permissionGranted: s.permissionGranted,
         hasData: s.hasData,
       }),
     },

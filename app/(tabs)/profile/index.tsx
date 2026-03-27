@@ -442,7 +442,7 @@ export default function ProfileScreen() {
   const { weightEntries, photos, addWeight } = useProgressStore();
   const { theme: settingsTheme, language, units, notifications, toggleTheme, setLanguage, setUnits, toggleNotificationsAsync, biometricEnabled, setBiometricEnabled, twoFAEnabled, setTwoFAEnabled } = useSettingsStore();
   const { isConnected: isGlucoseConnected, platformLabel: glucosePlatformLabel, connect: connectGlucose } = useHealthConnect();
-  const hasStepsData = useActivityStore((s) => s.hasData);
+  const stepsPermissionGranted = useActivityStore((s) => s.permissionGranted);
   const stepsToday = useActivityStore((s) => s.stepsToday);
   const requestPermissionAndSync = useActivityStore((s) => s.requestPermissionAndSync);
 
@@ -1135,7 +1135,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={async () => {
-                  if (hasStepsData) return;
+                  if (stepsPermissionGranted) return;
                   const result = await requestPermissionAndSync();
                   if (result === 'denied') {
                     Alert.alert(
@@ -1160,12 +1160,12 @@ export default function ProfileScreen() {
                     Steps & Activity
                   </Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                    {hasStepsData
+                    {stepsPermissionGranted
                       ? `Connected ✓ — ${stepsToday.toLocaleString()} steps today`
                       : 'Tap to connect Health Connect / Apple Health'}
                   </Text>
                 </View>
-                {hasStepsData ? (
+                {stepsPermissionGranted ? (
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success ?? '#22C55E' }} />
                 ) : (
                   <Text style={{ color: colors.textTertiary, fontSize: 18 }}>›</Text>
