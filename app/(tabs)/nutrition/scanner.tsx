@@ -66,6 +66,8 @@ export default function BarcodeScannerScreen() {
   const [manualName, setManualName] = useState('');
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [showIngredients, setShowIngredients] = useState(false);
+  // 'confirm' phase: shown after OFH result so user can verify the product name
+  const [confirmed, setConfirmed] = useState(false);
   const cooldownRef = useRef(false);
 
   // Clear stale results on mount
@@ -101,6 +103,19 @@ export default function BarcodeScannerScreen() {
     setIsAIOverriding(false);
     setManualName('');
     setShowIngredients(false);
+    setConfirmed(false);
+  };
+
+  // User says product name is wrong → switch to manual name entry
+  const handleProductWrong = () => {
+    setConfirmed(false);
+    setManualName('');
+    // Keep scannedFood so we keep the barcode context but switch to not_found flow
+    useNutritionStore.setState({
+      scannedFood: scannedFood
+        ? { ...scannedFood, source: 'not_found' }
+        : null,
+    });
   };
 
   const handleIdentifyByName = async () => {
@@ -250,30 +265,70 @@ export default function BarcodeScannerScreen() {
             </Text>
           </View>
         ) : scannedFood ? (
-          /* Result card */
+          /* ── Confirm product name (OFH only, before showing full details) ── */
+          scannedFood.source === 'openfoodfacts' && !confirmed ? (
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmQuestion}>
+                {language === 'ro' ? '🔍 Este acesta produsul scanat?' : '🔍 Is this the scanned product?'}
+              </Text>
+              <Text style={styles.confirmName}>
+                {language === 'ro' ? scannedFood.foodItem.nameRo : scannedFood.foodItem.name}
+              </Text>
+              {scannedFood.foodItem.brand ? (
+                <Text style={styles.confirmBrand}>{scannedFood.foodItem.brand}</Text>
+              ) : null}
+              <Text style={styles.confirmHint}>
+                {language === 'ro'
+                  ? 'Bazele de date internaționale pot avea produse greșite pentru coduri românești.'
+                  : 'International databases may return wrong products for regional barcodes.'}
+              </Text>
+              <View style={styles.confirmBtns}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: '#22C55E' }]}
+                  onPress={() => setConfirmed(true)}
+                >
+                  <Text style={styles.confirmBtnText}>
+                    {language === 'ro' ? '✅ Da, corect' : '✅ Yes, correct'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: '#EF4444' }]}
+                  onPress={handleProductWrong}
+                >
+                  <Text style={styles.confirmBtnText}>
+                    {language === 'ro' ? '❌ Nu, e greșit' : '❌ No, wrong product'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.rescanBtn} onPress={handleRescan}>
+                <Text style={styles.rescanText}>
+                  {language === 'ro' ? '↩ Scanează din nou' : '↩ Scan Again'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+          /* ── Full result card ─────────────────────────────────────────── */
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
             <View style={styles.resultCard}>
-              {/* Source badge */}
+              {/* Source badge + correct button */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <View style={[styles.sourceBadge, sourceBadgeColor(scannedFood.source, theme)]}>
                   <Text style={styles.sourceBadgeText}>
                     {sourceLabel(scannedFood.source, language)}
                   </Text>
                 </View>
-                {/* Wrong product override — available when source is OFH */}
-                {scannedFood.source === 'openfoodfacts' && (
-                  <TouchableOpacity
-                    onPress={handleAIOverride}
-                    disabled={isAIOverriding}
-                    style={styles.aiOverrideBtn}
-                  >
-                    <Text style={styles.aiOverrideBtnText}>
-                      {isAIOverriding
-                        ? (language === 'ro' ? '⏳ Se estimează…' : '⏳ Estimating…')
-                        : (language === 'ro' ? '❌ Produs greșit? Folosește AI' : '❌ Wrong product? Use AI')}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {/* Always show a "correct name" button */}
+                <TouchableOpacity
+                  onPress={scannedFood.source === 'openfoodfacts' ? handleProductWrong : handleAIOverride}
+                  disabled={isAIOverriding}
+                  style={styles.aiOverrideBtn}
+                >
+                  <Text style={styles.aiOverrideBtnText}>
+                    {isAIOverriding
+                      ? (language === 'ro' ? '⏳ Se estimează…' : '⏳ Estimating…')
+                      : (language === 'ro' ? '✏️ Produs greșit?' : '✏️ Wrong product?')}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* AI estimate warning */}
@@ -384,6 +439,7 @@ export default function BarcodeScannerScreen() {
               </View>
             </View>
           </ScrollView>
+          )
         ) : scannedFood?.source === 'not_found' ? (
           /* Product not found — ask user to enter name */
           <View style={styles.notFoundCard}>
@@ -686,6 +742,52 @@ function useStyles(theme: any) {
     loadingSubtext: {
       color: theme.colors.textSecondary,
       fontSize: 12,
+    },
+
+    // Confirm card
+    confirmCard: {
+      backgroundColor: theme.colors.card,
+      margin: 16,
+      borderRadius: 20,
+      padding: 20,
+      gap: 12,
+    },
+    confirmQuestion: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    confirmName: {
+      color: theme.colors.text,
+      fontSize: 22,
+      fontWeight: '800',
+      lineHeight: 28,
+    },
+    confirmBrand: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      marginTop: -6,
+    },
+    confirmHint: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      fontStyle: 'italic',
+    },
+    confirmBtns: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    confirmBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: 'center',
+    },
+    confirmBtnText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
     },
 
     // Result card
